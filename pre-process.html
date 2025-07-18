@@ -1,0 +1,89 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Pre-process TMDB Data</title>
+    <style>
+        body { font-family: sans-serif; padding: 20px; }
+        #status { margin-top: 20px; white-space: pre-wrap; }
+        #download { margin-top: 20px; display: none; }
+    </style>
+</head>
+<body>
+    <h1>Pre-process TMDB Data</h1>
+    <p>This script will fetch data from your JSON file, enrich it with data from TMDB, and then allow you to download the new, combined JSON file.</p>
+    <input type="file" id="jsonFile" accept=".json">
+    <button id="start">Start Processing</button>
+    <div id="status"></div>
+    <a id="download" href="#" download="enriched_playlist.json">Download Enriched JSON</a>
+
+    <script>
+        const TMDB_API_KEY = '871c8ec045dba340e55b032a0546948c';
+
+        const startBtn = document.getElementById('start');
+        const statusEl = document.getElementById('status');
+        const downloadEl = document.getElementById('download');
+        const jsonFileInput = document.getElementById('jsonFile');
+
+        startBtn.addEventListener('click', async () => {
+            if (jsonFileInput.files.length === 0) {
+                alert('Please select a JSON file to process.');
+                return;
+            }
+
+            startBtn.disabled = true;
+            statusEl.textContent = 'Reading JSON file...';
+
+            try {
+                const file = jsonFileInput.files[0];
+                const cineData = JSON.parse(await file.text());
+
+                statusEl.textContent = 'Enriching data with TMDB...';
+
+                for (const category of cineData.Categories) {
+                    for (const entry of category.Entries) {
+                        const type = category.MainCategory.toLowerCase().includes('movie') ? 'movie' : 'series';
+                        const tmdbData = await fetchTmdbData(entry.Title, type);
+                        Object.assign(entry, tmdbData);
+                        statusEl.textContent += `\nProcessed: ${entry.Title}`;
+                        await new Promise(resolve => setTimeout(resolve, 100)); // Rate limit to avoid overwhelming the API
+                    }
+                }
+
+                statusEl.textContent += '\n\nProcessing complete!';
+                const enrichedJson = JSON.stringify(cineData, null, 2);
+                const blob = new Blob([enrichedJson], { type: 'application/json' });
+                downloadEl.href = URL.createObjectURL(blob);
+                downloadEl.style.display = 'block';
+
+            } catch (error) {
+                statusEl.textContent = `Error: ${error.message}`;
+            }
+        });
+
+        async function fetchTmdbData(title, type) {
+            const searchType = type === 'series' ? 'tv' : 'movie';
+            const url = `https://api.themoviedb.org/3/search/${searchType}?api_key=${TMDB_API_KEY}&query=${encodeURIComponent(title)}`;
+
+            try {
+                const response = await fetch(url);
+                const data = await response.json();
+                if (data.results && data.results.length > 0) {
+                    const item = data.results[0];
+                    return {
+                        Description: item.overview,
+                        Year: type === 'series' ? (item.first_air_date ? item.first_air_date.split('-')[0] : '') : (item.release_date ? item.release_date.split('-')[0] : ''),
+                        Rating: item.vote_average ? item.vote_average.toFixed(1) : 'N/A',
+                        Poster: item.poster_path ? `https://image.tmdb.org/t/p/w500${item.poster_path}` : '',
+                        Thumbnail: item.backdrop_path ? `https://image.tmdb.org/t/p/w500${item.backdrop_path}` : '',
+                    };
+                }
+            } catch (error) {
+                console.error(`Failed to fetch TMDB data for ${title}:`, error);
+            }
+            return {};
+        }
+    </script>
+</body>
+</html>
