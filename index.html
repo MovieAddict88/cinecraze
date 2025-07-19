@@ -2277,7 +2277,7 @@
                 </button>
 
                 <div class="player-container">
-                    <video id="player" playsinline controls>
+                    <video id="player" playsinline controls crossorigin="anonymous">
                         <!-- Source will be set dynamically -->
                     </video>
                     <div id="player-message-area" style="display: none; position: absolute; top: 50%; left: 50%; transform: translate(-50%, -50%); text-align: center; padding: 20px; background-color: var(--youtube-gray); border-radius: var(--radius);"></div>
@@ -2605,7 +2605,9 @@
                 const response = await fetch("https://raw.githubusercontent.com/MovieAddict88/Movie/main/enriched_playlist.json"); // Changed to local file
                 if (!response.ok) throw new Error("Online source failed");
 
-                cineData = await response.json();
+                const base64Data = await response.text();
+                const decodedData = decodeURIComponent(escape(atob(base64Data)));
+                cineData = JSON.parse(decodedData);
                 console.log("✅ Loaded from LOCAL source");
 
             } catch (err) {
@@ -3346,7 +3348,17 @@
             }
             // Check for MPD URL
             if (url.includes('.mpd')) {
+                if (dashPlayer) {
+                    dashPlayer.reset();
+                }
                 dashPlayer = dashjs.MediaPlayer().create();
+                dashPlayer.on(dashjs.MediaPlayer.events.ERROR, (e) => {
+                    console.error('DASH Player Error:', e);
+                    if (e.error && e.error.message) {
+                        elements.playerMessageArea.textContent = `Error: ${e.error.message}`;
+                        elements.playerMessageArea.style.display = 'block';
+                    }
+                });
                 dashPlayer.initialize(elements.player, url, true);
                 return;
             }

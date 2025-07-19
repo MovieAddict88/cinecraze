@@ -53,7 +53,8 @@
 
                 statusEl.textContent += '\n\nProcessing complete!';
                 const enrichedJson = JSON.stringify(cineData, null, 2);
-                const blob = new Blob([enrichedJson], { type: 'application/json' });
+                const base64Data = btoa(unescape(encodeURIComponent(enrichedJson)));
+                const blob = new Blob([base64Data], { type: 'text/plain' });
                 downloadEl.href = URL.createObjectURL(blob);
                 downloadEl.style.display = 'block';
 
