@@ -3352,13 +3352,23 @@
                     dashPlayer.reset();
                 }
                 dashPlayer = dashjs.MediaPlayer().create();
+
+                // Add more robust error handling
                 dashPlayer.on(dashjs.MediaPlayer.events.ERROR, (e) => {
                     console.error('DASH Player Error:', e);
-                    if (e.error && e.error.message) {
+                    if (e.error && e.error.code === 17) { // NETWORK_ERROR
+                        elements.playerMessageArea.textContent = 'Network error. Retrying...';
+                        elements.playerMessageArea.style.display = 'block';
+                        setTimeout(() => dashPlayer.initialize(elements.player, url, true), 3000);
+                    } else if (e.error && e.error.message) {
                         elements.playerMessageArea.textContent = `Error: ${e.error.message}`;
                         elements.playerMessageArea.style.display = 'block';
+                    } else {
+                        elements.playerMessageArea.textContent = 'An unknown error occurred with the video stream.';
+                        elements.playerMessageHessageArea.style.display = 'block';
                     }
                 });
+
                 dashPlayer.initialize(elements.player, url, true);
                 return;
             }
