@@ -2230,6 +2230,13 @@
                 </div>
 
                 <div class="filter-group">
+                    <label for="year-filter">Year</label>
+                    <select id="year-filter" class="filter-select">
+                        <option value="all">All Years</option>
+                    </select>
+                </div>
+
+                <div class="filter-group">
                     <label for="country-filter">Country</label>
                     <select id="country-filter" class="filter-select">
                         <option value="all">All Countries</option>
@@ -2433,6 +2440,7 @@
             contentList: document.getElementById('content-list'),
             genreFilter: document.getElementById('genre-filter'),
             countryFilter: document.getElementById('country-filter'),
+            yearFilter: document.getElementById('year-filter'),
             sortFilter: document.getElementById('sort-filter'),
             viewerPage: document.getElementById('viewer-page'),
             viewerTitle: document.getElementById('viewer-title'),
@@ -2790,6 +2798,25 @@
                 option.textContent = country;
                 countryFilter.appendChild(option);
             });
+
+            // Populate year filter
+            const yearFilter = elements.yearFilter;
+            const years = new Set();
+            cineData.Categories.forEach(category => {
+                category.Entries.forEach(entry => {
+                    if (entry.Year) {
+                        years.add(entry.Year);
+                    }
+                });
+            });
+
+            const sortedYears = Array.from(years).sort((a, b) => b - a);
+            sortedYears.forEach(year => {
+                const option = document.createElement('option');
+                option.value = year;
+                option.textContent = year;
+                yearFilter.appendChild(option);
+            });
         }
         
         // Render content based on filters
@@ -2803,6 +2830,7 @@
             // Get selected category
             const genre = elements.genreFilter.value.toLowerCase();
             const country = elements.countryFilter.value.toLowerCase();
+            const year = elements.yearFilter.value;
             const sortBy = elements.sortFilter.value;
 
             // Filter content
@@ -2814,8 +2842,9 @@
                             (entry.SubCategory && entry.SubCategory.toLowerCase().includes(genre));
                         const countryMatch = country === 'all' ||
                             (entry.Country && entry.Country.toLowerCase().includes(country));
+                        const yearMatch = year === 'all' || (entry.Year && entry.Year.toString() === year);
 
-                        if (genreMatch && countryMatch) {
+                        if (genreMatch && countryMatch && yearMatch) {
                             currentContent.push({
                                 ...entry,
                                 type: cat.MainCategory.toLowerCase().includes('movie') ? 'movie' :
@@ -3643,6 +3672,12 @@
             });
 
             elements.countryFilter.addEventListener('change', () => {
+                const activeNavItem = document.querySelector('.nav-item.active');
+                const category = activeNavItem ? activeNavItem.dataset.category : 'all';
+                renderContent(category);
+            });
+
+            elements.yearFilter.addEventListener('change', () => {
                 const activeNavItem = document.querySelector('.nav-item.active');
                 const category = activeNavItem ? activeNavItem.dataset.category : 'all';
                 renderContent(category);
