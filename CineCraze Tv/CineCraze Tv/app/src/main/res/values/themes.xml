@@ -14,9 +14,9 @@
         <item name="colorSurface">@color/netflix_dark_gray</item>
         <item name="colorOnSurface">@color/netflix_white</item>
         <!-- Status bar color. -->
-        <item name="android:statusBarColor" tools:targetApi="l">@android:color/black</item>
-        <!-- Provide a default window background to avoid black flashes -->
-        <item name="android:windowBackground">@color/netflix_black</item>
+        <item name="android:statusBarColor" tools:targetApi="l">@android:color/transparent</item>
+        <item name="android:windowTranslucentStatus" tools:targetApi="kitkat">true</item>
+        <!-- Customize your theme here. -->
     </style>
 
     <style name="RatingBar" parent="Theme.AppCompat">
@@ -31,6 +31,5 @@
     <style name="Theme.CineCraze.NoActionBar">
         <item name="windowActionBar">false</item>
         <item name="windowNoTitle">true</item>
-        <item name="android:windowBackground">@color/netflix_black</item>
     </style>
 </resources>
