@@ -63,10 +63,6 @@
             android:name=".utils.BackgroundUpdateService"
             android:exported="false" />
         <activity
-            android:name=".FragmentMainActivity"
-            android:exported="true"
-            android:theme="@style/Theme.CineCraze.NoActionBar" />
-        <activity
             android:name=".DetailsActivity"
             android:configChanges="keyboard|keyboardHidden|orientation|screenSize|screenLayout|smallestScreenSize|uiMode"
             android:theme="@style/Theme.CineCraze.NoActionBar" />
