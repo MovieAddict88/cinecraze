@@ -473,28 +473,27 @@ public class DetailsActivity extends AppCompatActivity {
         };
 
         // Optimize for large datasets
-        layoutManager.setInitialPrefetchItemCount(Math.min(currentSeason.getEpisodes().size(), 10));
+        layoutManager.setInitialPrefetchItemCount(Math.min(currentSeason.getEpisodes().size(), 6));
         episodeRecyclerView.setLayoutManager(layoutManager);
 
-        // Enhanced performance optimizations for very large episode lists
-        //episodeRecyclerView.setHasFixedSize(true); // Items have fixed size
-        episodeRecyclerView.setItemViewCacheSize(20); // Increased cache for large lists
-        episodeRecyclerView.setDrawingCacheEnabled(true);
+        // Memory-conscious settings for very large episode lists
+        episodeRecyclerView.setItemViewCacheSize(8);
+        episodeRecyclerView.setDrawingCacheEnabled(false);
         episodeRecyclerView.setDrawingCacheQuality(View.DRAWING_CACHE_QUALITY_LOW);
 
         // Enable nested scrolling for better performance
         episodeRecyclerView.setNestedScrollingEnabled(true);
 
-        // For very large episode lists (500+), implement virtualization
+        // For very large episode lists (500+), implement additional optimizations
         if (currentSeason.getEpisodes().size() > 500) {
-            Log.i(TAG, "Large episode list detected (" + currentSeason.getEpisodes().size() + " episodes). Enabling optimizations.");
+            Log.i(TAG, "Large episode list detected (" + currentSeason.getEpisodes().size() + " episodes). Enabling extra optimizations.");
 
             // Use a more conservative item view cache for memory efficiency
-            episodeRecyclerView.setItemViewCacheSize(15);
+            episodeRecyclerView.setItemViewCacheSize(6);
 
             // Enable view recycling pool for better memory management
             RecyclerView.RecycledViewPool viewPool = new RecyclerView.RecycledViewPool();
-            viewPool.setMaxRecycledViews(0, 30); // Allow up to 30 recycled views
+            viewPool.setMaxRecycledViews(0, 20);
             episodeRecyclerView.setRecycledViewPool(viewPool);
 
             // Show a warning message for very large lists

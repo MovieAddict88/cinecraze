@@ -63,7 +63,8 @@ public class MovieAdapter extends RecyclerView.Adapter<MovieAdapter.ViewHolder> 
         Entry entry = entryList.get(position);
 
         holder.title.setText(entry.getTitle());
-        Glide.with(context).load(entry.getPoster()).into(holder.poster);
+        // Use sized/cached image load to reduce memory
+        ImageUtils.loadPosterImage(context, entry.getPoster(), holder.poster);
         holder.rating.setRating(entry.getRating());
 
         if (holder.description != null) {

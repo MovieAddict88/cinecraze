@@ -6,6 +6,8 @@ import android.util.Log;
 import com.google.android.gms.ads.MobileAds;
 import com.google.android.gms.ads.initialization.InitializationStatus;
 import com.google.android.gms.ads.initialization.OnInitializationCompleteListener;
+import com.bumptech.glide.Glide;
+import com.bumptech.glide.MemoryCategory;
 
 /**
  * Application class for CineCraze Tv
@@ -23,6 +25,13 @@ public class CineCrazeApplication extends Application {
         
         // Initialize AdMob
         initializeAdMob();
+        
+        // Reduce Glide memory footprint globally
+        try {
+            Glide.get(this).setMemoryCategory(MemoryCategory.LOW);
+        } catch (Exception e) {
+            Log.w(TAG, "Unable to set Glide MemoryCategory", e);
+        }
         
         Log.d(TAG, "CineCraze Tv Application initialized successfully");
     }

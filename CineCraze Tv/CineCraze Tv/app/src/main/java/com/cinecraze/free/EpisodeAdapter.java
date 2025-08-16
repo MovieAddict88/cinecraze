@@ -11,6 +11,8 @@ import androidx.annotation.NonNull;
 import androidx.recyclerview.widget.RecyclerView;
 
 import com.bumptech.glide.Glide;
+import com.bumptech.glide.load.engine.DiskCacheStrategy;
+import com.bumptech.glide.request.RequestOptions;
 import com.cinecraze.free.models.Episode;
 import com.cinecraze.free.R;
 
@@ -66,11 +68,17 @@ public class EpisodeAdapter extends RecyclerView.Adapter<EpisodeAdapter.ViewHold
         
         // Load episode thumbnail with optimization
         if (episode.getThumbnail() != null && !episode.getThumbnail().isEmpty()) {
-            Glide.with(context)
-                .load(episode.getThumbnail())
+            RequestOptions opts = new RequestOptions()
+                .override(320, 180) // reduce memory footprint for thumbnails
+                .centerCrop()
+                .diskCacheStrategy(DiskCacheStrategy.ALL)
                 .placeholder(R.drawable.image_placeholder)
                 .error(R.drawable.image_placeholder)
-                .skipMemoryCache(false) // Use memory cache for better performance
+                .fallback(R.drawable.image_placeholder);
+
+            Glide.with(context)
+                .load(episode.getThumbnail())
+                .apply(opts)
                 .into(holder.episodeThumbnail);
         } else {
             holder.episodeThumbnail.setImageResource(R.drawable.image_placeholder);
