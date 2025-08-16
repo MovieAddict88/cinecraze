@@ -16,6 +16,8 @@ import java.text.SimpleDateFormat;
 import java.util.Date;
 import java.util.Locale;
 
+import com.google.gson.Gson;
+
 /**
  * Fixed Enhanced Update Manager
  * Properly handles update detection and database replacement
@@ -165,7 +167,7 @@ public class EnhancedUpdateManagerFixed {
                 }
                 
                 // Parse manifest
-                com.google.gson.Gson gson = new com.google.gson.Gson();
+                Gson gson = new Gson();
                 ManifestInfo manifestInfo = gson.fromJson(result.toString(), ManifestInfo.class);
                 
                 // Update last check time
