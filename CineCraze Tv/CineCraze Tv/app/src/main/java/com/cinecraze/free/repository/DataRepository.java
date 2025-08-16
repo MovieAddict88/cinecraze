@@ -47,21 +47,6 @@ public class DataRepository {
     }
 
     /**
-     * Load a single full entry (including JSON fields) by title and year
-     */
-    public Entry loadFullEntry(String title, String year) {
-        try {
-            EntryEntity entity = database.entryDao().getFullEntryByTitleYear(title, year);
-            if (entity != null) {
-                return DatabaseUtils.entityToEntry(entity);
-            }
-        } catch (Exception e) {
-            Log.e(TAG, "Error loading full entry: " + e.getMessage(), e);
-        }
-        return null;
-    }
-
-    /**
      * Expose cache validity so UI can decide whether to prompt before downloading
      */
     public boolean hasValidCache() {
@@ -134,8 +119,8 @@ public class DataRepository {
     public void getPaginatedData(int page, int pageSize, PaginatedDataCallback callback) {
         try {
             int offset = page * pageSize;
-            List<com.cinecraze.free.database.entities.EntryLight> lights = database.entryDao().getEntriesPaged(pageSize, offset);
-            List<Entry> entries = DatabaseUtils.lightsToEntries(lights);
+            List<EntryEntity> entities = database.entryDao().getEntriesPaged(pageSize, offset);
+            List<Entry> entries = DatabaseUtils.entitiesToEntries(entities);
             int totalCount = database.entryDao().getEntriesCount();
             boolean hasMorePages = (offset + pageSize) < totalCount;
 
@@ -153,8 +138,8 @@ public class DataRepository {
     public void getPaginatedDataByCategory(String category, int page, int pageSize, PaginatedDataCallback callback) {
         try {
             int offset = page * pageSize;
-            List<com.cinecraze.free.database.entities.EntryLight> lights = database.entryDao().getEntriesByCategoryPaged(category, pageSize, offset);
-            List<Entry> entries = DatabaseUtils.lightsToEntries(lights);
+            List<EntryEntity> entities = database.entryDao().getEntriesByCategoryPaged(category, pageSize, offset);
+            List<Entry> entries = DatabaseUtils.entitiesToEntries(entities);
             int totalCount = database.entryDao().getEntriesCountByCategory(category);
             boolean hasMorePages = (offset + pageSize) < totalCount;
 
@@ -172,8 +157,8 @@ public class DataRepository {
     public void searchPaginated(String searchQuery, int page, int pageSize, PaginatedDataCallback callback) {
         try {
             int offset = page * pageSize;
-            List<com.cinecraze.free.database.entities.EntryLight> lights = database.entryDao().searchByTitlePaged(searchQuery, pageSize, offset);
-            List<Entry> entries = DatabaseUtils.lightsToEntries(lights);
+            List<EntryEntity> entities = database.entryDao().searchByTitlePaged(searchQuery, pageSize, offset);
+            List<Entry> entries = DatabaseUtils.entitiesToEntries(entities);
             int totalCount = database.entryDao().getSearchResultsCount(searchQuery);
             boolean hasMorePages = (offset + pageSize) < totalCount;
 
@@ -197,24 +182,24 @@ public class DataRepository {
      * Get entries by category from cache
      */
     public List<Entry> getEntriesByCategory(String category) {
-        List<com.cinecraze.free.database.entities.EntryLight> lights = database.entryDao().getEntriesByCategory(category);
-        return DatabaseUtils.lightsToEntries(lights);
+        List<EntryEntity> entities = database.entryDao().getEntriesByCategory(category);
+        return DatabaseUtils.entitiesToEntries(entities);
     }
 
     /**
      * Search entries by title from cache
      */
     public List<Entry> searchByTitle(String title) {
-        List<com.cinecraze.free.database.entities.EntryLight> lights = database.entryDao().searchByTitle(title);
-        return DatabaseUtils.lightsToEntries(lights);
+        List<EntryEntity> entities = database.entryDao().searchByTitle(title);
+        return DatabaseUtils.entitiesToEntries(entities);
     }
 
     /**
      * Get all cached entries
      */
     public List<Entry> getAllCachedEntries() {
-        List<com.cinecraze.free.database.entities.EntryLight> lights = database.entryDao().getAllEntries();
-        return DatabaseUtils.lightsToEntries(lights);
+        List<EntryEntity> entities = database.entryDao().getAllEntries();
+        return DatabaseUtils.entitiesToEntries(entities);
     }
 
     /**
@@ -230,6 +215,7 @@ public class DataRepository {
     public List<String> getUniqueGenres() {
         try {
             List<String> genres = database.entryDao().getUniqueGenres();
+            // Filter out null and empty values
             List<String> filteredGenres = new ArrayList<>();
             for (String genre : genres) {
                 if (genre != null && !genre.trim().isEmpty() && !genre.equalsIgnoreCase("null")) {
@@ -249,6 +235,7 @@ public class DataRepository {
     public List<String> getUniqueCountries() {
         try {
             List<String> countries = database.entryDao().getUniqueCountries();
+            // Filter out null and empty values
             List<String> filteredCountries = new ArrayList<>();
             for (String country : countries) {
                 if (country != null && !country.trim().isEmpty() && !country.equalsIgnoreCase("null")) {
@@ -268,6 +255,7 @@ public class DataRepository {
     public List<String> getUniqueYears() {
         try {
             List<String> years = database.entryDao().getUniqueYears();
+            // Filter out null, empty, and zero values
             List<String> filteredYears = new ArrayList<>();
             for (String year : years) {
                 if (year != null && !year.trim().isEmpty() && !year.equalsIgnoreCase("null") && !year.equals("0")) {
@@ -287,13 +275,13 @@ public class DataRepository {
     public void getPaginatedFilteredData(String genre, String country, String year, int page, int pageSize, PaginatedDataCallback callback) {
         try {
             int offset = page * pageSize;
-            List<com.cinecraze.free.database.entities.EntryLight> lights = database.entryDao().getEntriesFilteredPaged(
+            List<EntryEntity> entities = database.entryDao().getEntriesFilteredPaged(
                 genre == null || genre.isEmpty() ? null : genre,
                 country == null || country.isEmpty() ? null : country,
                 year == null || year.isEmpty() ? null : year,
                 pageSize, offset
             );
-            List<Entry> entries = DatabaseUtils.lightsToEntries(lights);
+            List<Entry> entries = DatabaseUtils.entitiesToEntries(entities);
             int totalCount = database.entryDao().getEntriesFilteredCount(
                 genre == null || genre.isEmpty() ? null : genre,
                 country == null || country.isEmpty() ? null : country,
@@ -311,8 +299,8 @@ public class DataRepository {
 
     public List<Entry> getTopRatedEntries(int count) {
         try {
-            List<com.cinecraze.free.database.entities.EntryLight> lights = database.entryDao().getTopRatedEntries(count);
-            return DatabaseUtils.lightsToEntries(lights);
+            List<EntryEntity> entities = database.entryDao().getTopRatedEntries(count);
+            return DatabaseUtils.entitiesToEntries(entities);
         } catch (Exception e) {
             Log.e(TAG, "Error getting top rated entries: " + e.getMessage(), e);
             return new ArrayList<>();
@@ -321,8 +309,8 @@ public class DataRepository {
 
     public List<Entry> getRecentlyAdded(int count) {
         try {
-            List<com.cinecraze.free.database.entities.EntryLight> lights = database.entryDao().getRecentlyAdded(count);
-            return DatabaseUtils.lightsToEntries(lights);
+            List<EntryEntity> entities = database.entryDao().getRecentlyAdded(count);
+            return DatabaseUtils.entitiesToEntries(entities);
         } catch (Exception e) {
             Log.e(TAG, "Error getting recently added: " + e.getMessage(), e);
             return new ArrayList<>();
@@ -358,8 +346,8 @@ public class DataRepository {
      */
     private void loadFromCache(DataCallback callback) {
         try {
-            List<com.cinecraze.free.database.entities.EntryLight> lights = database.entryDao().getAllEntries();
-            List<Entry> entries = DatabaseUtils.lightsToEntries(lights);
+            List<EntryEntity> entities = database.entryDao().getAllEntries();
+            List<Entry> entries = DatabaseUtils.entitiesToEntries(entities);
 
             if (!entries.isEmpty()) {
                 callback.onSuccess(entries);
