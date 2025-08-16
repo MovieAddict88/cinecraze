@@ -78,6 +78,11 @@ public class FragmentMainActivity extends AppCompatActivity {
     private LinearLayout bannerAdContainer;
     private AdView bannerAdView;
 
+    // Playlist DB first-run manager and state
+    private com.cinecraze.free.utils.EnhancedUpdateManagerFlexible playlistUpdateManager;
+    private com.cinecraze.free.utils.EnhancedUpdateManagerFlexible.ManifestInfo initialManifestInfo;
+    private android.widget.TextView downloadingMessageText;
+
     private static final String PREFS_APP_UPDATE = "app_open_update_prefs";
     private static final String KEY_LAST_HANDLED_MANIFEST_VERSION = "last_handled_manifest_version";
     private static final long MANIFEST_POLL_INTERVAL_MS = 5 * 60 * 1000; // 5 minutes
@@ -103,11 +108,12 @@ public class FragmentMainActivity extends AppCompatActivity {
         setContentView(R.layout.activity_main_fragment);
 
         dataRepository = new DataRepository(this);
+        playlistUpdateManager = new com.cinecraze.free.utils.EnhancedUpdateManagerFlexible(this);
 
         initializeViews();
 
-        // Preflight: if cache is invalid, prompt before initial bulk download
-        if (dataRepository.hasValidCache()) {
+        // Preflight: if playlist.db exists, start app; otherwise prompt to download DB first
+        if (playlistUpdateManager.isDatabaseExists()) {
             startFragments();
             // Start manifest watcher since user is in app already
             manifestHandler.postDelayed(manifestPoller, MANIFEST_POLL_INTERVAL_MS);
@@ -136,22 +142,36 @@ public class FragmentMainActivity extends AppCompatActivity {
     }
 
     private void preflightAndPrompt() {
-        ApiService api = RetrofitClient.getClient().create(ApiService.class);
-        api.headPlaylist().enqueue(new Callback<Void>() {
+        // Fetch manifest to get size/hash and then prompt user
+        playlistUpdateManager.checkForUpdates(new com.cinecraze.free.utils.EnhancedUpdateManagerFlexible.UpdateCallback() {
             @Override
-            public void onResponse(Call<Void> call, Response<Void> response) {
-                long contentLength = 0L;
-                try {
-                    String len = response.headers().get("Content-Length");
-                    if (len != null) contentLength = Long.parseLong(len);
-                } catch (Exception ignored) {}
-                showDownloadPrompt(contentLength > 0 ? contentLength : -1L);
+            public void onUpdateCheckStarted() { }
+
+            @Override
+            public void onUpdateAvailable(com.cinecraze.free.utils.EnhancedUpdateManagerFlexible.ManifestInfo manifestInfo) {
+                initialManifestInfo = manifestInfo;
+                long bytes = (manifestInfo != null && manifestInfo.database != null) ? manifestInfo.database.sizeBytes : -1L;
+                runOnUiThread(() -> showDownloadPrompt(bytes));
             }
 
             @Override
-            public void onFailure(Call<Void> call, Throwable t) {
-                showDownloadPrompt(-1L);
+            public void onNoUpdateAvailable() {
+                // Should not happen on first run; proceed just in case
+                runOnUiThread(() -> startFragments());
             }
+
+            @Override
+            public void onUpdateCheckFailed(String error) {
+                runOnUiThread(() -> {
+                    android.widget.Toast.makeText(FragmentMainActivity.this, "Failed to check update: " + error, android.widget.Toast.LENGTH_LONG).show();
+                    finish();
+                });
+            }
+
+            @Override public void onUpdateDownloadStarted() { }
+            @Override public void onUpdateDownloadProgress(int progress) { }
+            @Override public void onUpdateDownloadCompleted() { }
+            @Override public void onUpdateDownloadFailed(String error) { }
         });
     }
 
@@ -180,9 +200,42 @@ public class FragmentMainActivity extends AppCompatActivity {
 
     private void startInitialDownload(long estimatedBytes) {
         showDownloadingDialog(estimatedBytes);
-        dataRepository.ensureDataAvailable(new DataRepository.DataCallback() {
+        if (initialManifestInfo == null) {
+            // Safety fallback
+            if (downloadingDialog != null && downloadingDialog.isShowing()) {
+                downloadingDialog.dismiss();
+            }
+            android.widget.Toast.makeText(this, "Missing manifest info", android.widget.Toast.LENGTH_LONG).show();
+            finish();
+            return;
+        }
+        playlistUpdateManager.downloadUpdate(initialManifestInfo, new com.cinecraze.free.utils.EnhancedUpdateManagerFlexible.UpdateCallback() {
+            @Override public void onUpdateCheckStarted() { }
+            @Override public void onUpdateAvailable(com.cinecraze.free.utils.EnhancedUpdateManagerFlexible.ManifestInfo manifestInfo) { }
+            @Override public void onNoUpdateAvailable() { }
+            @Override public void onUpdateCheckFailed(String error) { }
+
             @Override
-            public void onSuccess(java.util.List<com.cinecraze.free.models.Entry> entries) {
+            public void onUpdateDownloadStarted() { }
+
+            @Override
+            public void onUpdateDownloadProgress(int progress) {
+                runOnUiThread(() -> {
+                    if (downloadingMessageText != null) {
+                        String sizeText;
+                        if (estimatedBytes > 0) {
+                            double mb = estimatedBytes / (1024.0 * 1024.0);
+                            sizeText = String.format(java.util.Locale.getDefault(), "%.1f MB", mb);
+                        } else {
+                            sizeText = "unknown size";
+                        }
+                        downloadingMessageText.setText("Downloading data (" + sizeText + ")...\n" + progress + "%");
+                    }
+                });
+            }
+
+            @Override
+            public void onUpdateDownloadCompleted() {
                 runOnUiThread(() -> {
                     if (downloadingDialog != null && downloadingDialog.isShowing()) {
                         downloadingDialog.dismiss();
@@ -192,12 +245,12 @@ public class FragmentMainActivity extends AppCompatActivity {
             }
 
             @Override
-            public void onError(String error) {
+            public void onUpdateDownloadFailed(String error) {
                 runOnUiThread(() -> {
                     if (downloadingDialog != null && downloadingDialog.isShowing()) {
                         downloadingDialog.dismiss();
                     }
-                    android.widget.Toast.makeText(FragmentMainActivity.this, "Failed to initialize: " + error, android.widget.Toast.LENGTH_LONG).show();
+                    android.widget.Toast.makeText(FragmentMainActivity.this, "Download failed: " + error, android.widget.Toast.LENGTH_LONG).show();
                     finish();
                 });
             }
@@ -227,12 +280,12 @@ public class FragmentMainActivity extends AppCompatActivity {
         pbParams.setMargins(0, 0, padding, 0);
         progressBar.setLayoutParams(pbParams);
 
-        android.widget.TextView message = new android.widget.TextView(this);
-        message.setText("Downloading data (" + sizeText + ")...\nPlease wait, this may take a moment.");
-        message.setTextSize(14);
+        downloadingMessageText = new android.widget.TextView(this);
+        downloadingMessageText.setText("Downloading data (" + sizeText + ")...\nPlease wait, this may take a moment.");
+        downloadingMessageText.setTextSize(14);
 
         container.addView(progressBar);
-        container.addView(message);
+        container.addView(downloadingMessageText);
 
         downloadingDialog = new AlertDialog.Builder(this)
             .setTitle("Downloading")
