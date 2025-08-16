@@ -35,6 +35,8 @@ import retrofit2.Call;
 import retrofit2.Callback;
 import retrofit2.Response;
 
+import com.cinecraze.free.remote.RemoteDatabaseManager;
+
 /**
  * SWIPE-ENABLED FRAGMENT-BASED IMPLEMENTATION
  *
@@ -85,8 +87,28 @@ public class FragmentMainActivity extends AppCompatActivity {
 
         initializeViews();
 
-        // Start UI immediately; data will be fetched/paginated inside fragments
-        startFragments();
+        // Ensure remote DB is installed before starting fragments
+        RemoteDatabaseManager.ensureDatabase(this, true, new RemoteDatabaseManager.SetupCallback() {
+            @Override
+            public void onReady() {
+                runOnUiThread(() -> {
+                    startFragments();
+                });
+            }
+
+            @Override
+            public void onError(String error) {
+                runOnUiThread(() -> {
+                    new AlertDialog.Builder(FragmentMainActivity.this)
+                        .setTitle("Initialization failed")
+                        .setMessage("Unable to download required resources: " + error)
+                        .setPositiveButton("Retry", (d,w) -> recreate())
+                        .setNegativeButton("Exit", (d,w) -> finish())
+                        .setCancelable(false)
+                        .show();
+                });
+            }
+        });
     }
 
     private void startFragments() {

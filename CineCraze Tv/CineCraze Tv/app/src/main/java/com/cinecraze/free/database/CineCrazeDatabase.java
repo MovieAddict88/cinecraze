@@ -27,11 +27,13 @@ public abstract class CineCrazeDatabase extends RoomDatabase {
     
     public static synchronized CineCrazeDatabase getInstance(Context context) {
         if (instance == null) {
-            instance = Room.databaseBuilder(
+            RoomDatabase.Builder<CineCrazeDatabase> builder = Room.databaseBuilder(
                 context.getApplicationContext(),
                 CineCrazeDatabase.class,
                 DATABASE_NAME
-            )
+            );
+            // Remote DB is installed via RemoteDatabaseManager prior to first use
+            instance = builder
             .fallbackToDestructiveMigration()
             .allowMainThreadQueries() // For simplicity, but ideally use background threads
             .build();
