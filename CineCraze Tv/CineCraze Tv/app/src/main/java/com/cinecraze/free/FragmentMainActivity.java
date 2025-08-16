@@ -465,30 +465,12 @@ public class FragmentMainActivity extends AppCompatActivity {
     }
 
     @Override
-    protected void onDestroy() {
-        super.onDestroy();
-
-        // Unregister ViewPager callback to prevent memory leaks
-        if (mainViewPager != null && pageChangeCallback != null) {
-            mainViewPager.unregisterOnPageChangeCallback(pageChangeCallback);
-        }
-
-        // Clean up ads
-        if (bannerAdView != null) {
-            bannerAdView.destroy();
-        }
-        if (adsManager != null) {
-            adsManager.destroyAds();
-        }
-    }
-
-    @Override
     protected void onResume() {
         super.onResume();
         
         // Resume banner ad if available
         if (bannerAdView != null) {
-            bannerAdView.resume();
+            try { bannerAdView.resume(); } catch (Exception ignored) {}
         }
     }
 
@@ -498,7 +480,27 @@ public class FragmentMainActivity extends AppCompatActivity {
         
         // Pause banner ad if available
         if (bannerAdView != null) {
-            bannerAdView.pause();
+            try { bannerAdView.pause(); } catch (Exception ignored) {}
+        }
+    }
+
+    @Override
+    protected void onDestroy() {
+        super.onDestroy();
+
+        // Unregister ViewPager callback to prevent memory leaks
+        if (mainViewPager != null && pageChangeCallback != null) {
+            try { mainViewPager.unregisterOnPageChangeCallback(pageChangeCallback); } catch (Exception ignored) {}
+        }
+
+        // Clean up ads
+        if (bannerAdView != null) {
+            try { bannerAdView.destroy(); } catch (Exception ignored) {}
+            bannerAdView = null;
+        }
+        if (adsManager != null) {
+            try { adsManager.destroyAds(); } catch (Exception ignored) {}
+            adsManager = null;
         }
     }
 

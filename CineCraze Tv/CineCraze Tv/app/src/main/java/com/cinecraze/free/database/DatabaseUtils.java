@@ -35,7 +35,12 @@ public class DatabaseUtils {
         
         // Convert complex objects to JSON strings
         entity.setServersJson(gson.toJson(entry.getServers()));
-        entity.setSeasonsJson(gson.toJson(entry.getSeasons()));
+        // Only store seasons for series to reduce footprint
+        if (mainCategory != null && (mainCategory.toLowerCase().contains("series") || mainCategory.toLowerCase().contains("tv"))) {
+            entity.setSeasonsJson(gson.toJson(entry.getSeasons()));
+        } else {
+            entity.setSeasonsJson(null);
+        }
         entity.setRelatedJson(gson.toJson(entry.getRelated()));
         
         return entity;

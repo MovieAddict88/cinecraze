@@ -302,6 +302,9 @@ public abstract class BaseFragment extends Fragment {
                     dataRepository.forceRefreshData(new DataRepository.DataCallback() {
                         @Override
                         public void onSuccess(List<Entry> entries) {
+                            if (!isAdded()) {
+                                return;
+                            }
                             // After cache is updated, reload paginated data
                             loadPageData();
                             // updatePageData() will stop the refreshing indicator
@@ -309,6 +312,9 @@ public abstract class BaseFragment extends Fragment {
 
                         @Override
                         public void onError(String error) {
+                            if (!isAdded()) {
+                                return;
+                            }
                             if (getActivity() != null) {
                                 getActivity().runOnUiThread(() -> {
                                     if (swipeRefreshLayout != null) {
