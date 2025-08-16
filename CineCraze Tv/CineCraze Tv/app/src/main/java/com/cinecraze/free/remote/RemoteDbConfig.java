@@ -16,6 +16,10 @@ public class RemoteDbConfig {
     public static final String ROOM_DATABASE_NAME = "cinecraze_database";
     public static final String STAGED_DATABASE_NAME = "cinecraze_database.next";
 
+    // Prepackaged DB copy in internal files dir for Room's createFromFile
+    public static final String PREPACK_FILE_NAME = "prepackaged_cinecraze.db";
+    public static final String PREPACK_NEXT_FILE_NAME = "prepackaged_cinecraze.next.db";
+
     // SharedPreferences keys
     public static final String PREFS_NAME = "remote_db_prefs";
     public static final String KEY_INSTALLED_VERSION = "installed_db_version";

@@ -112,6 +112,12 @@ public class RemoteDatabaseManager {
         File installed = context.getDatabasePath(RemoteDbConfig.ROOM_DATABASE_NAME);
         if (installed.exists()) installed.delete();
         staged.renameTo(installed);
+        // refresh prepack copy
+        try {
+            File prepack = new File(context.getFilesDir(), RemoteDbConfig.PREPACK_FILE_NAME);
+            if (prepack.exists()) prepack.delete();
+            copy(installed, prepack);
+        } catch (Exception ignored) {}
         prefs.edit()
             .putString(RemoteDbConfig.KEY_INSTALLED_VERSION, pending)
             .putString(RemoteDbConfig.KEY_PENDING_VERSION, "")
@@ -196,6 +202,11 @@ public class RemoteDatabaseManager {
                 dbPath.getParentFile().mkdirs();
                 if (dbPath.exists()) dbPath.delete();
                 copy(finalDb, dbPath);
+
+                // Also copy to prepack location for Room createFromFile bootstrap
+                File prepack = new File(context.getFilesDir(), RemoteDbConfig.PREPACK_FILE_NAME);
+                if (prepack.exists()) prepack.delete();
+                copy(dbPath, prepack);
 
                 SharedPreferences prefs = context.getSharedPreferences(RemoteDbConfig.PREFS_NAME, Context.MODE_PRIVATE);
                 prefs.edit()
