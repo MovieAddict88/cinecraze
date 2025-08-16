@@ -25,6 +25,7 @@ import com.cinecraze.free.net.RetrofitClient;
 import com.cinecraze.free.ads.AdsManager;
 import com.cinecraze.free.ads.AdsApiService;
 import com.cinecraze.free.ads.AdsConfig;
+import com.cinecraze.free.utils.BackgroundUpdateService;
 import com.gauravk.bubblenavigation.BubbleNavigationConstraintView;
 import com.google.android.material.floatingactionbutton.FloatingActionButton;
 import com.google.android.gms.ads.AdView;
@@ -84,6 +85,9 @@ public class FragmentMainActivity extends AppCompatActivity {
         dataRepository = new DataRepository(this);
 
         initializeViews();
+
+        // Start background update service
+        startBackgroundUpdateService();
 
         // Preflight: if cache is invalid, prompt before initial bulk download
         if (dataRepository.hasValidCache()) {
@@ -536,5 +540,11 @@ public class FragmentMainActivity extends AppCompatActivity {
             params.setMargins(0, 0, 0, bottomMarginInPixels);
             mainViewPager.setLayoutParams(params);
         }
+    }
+
+    private void startBackgroundUpdateService() {
+        // Start background update service for silent database updates
+        Intent updateIntent = new Intent(this, BackgroundUpdateService.class);
+        startService(updateIntent);
     }
 }
