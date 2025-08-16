@@ -676,9 +676,9 @@ public class FragmentMainActivity extends AppCompatActivity {
                         return;
                     }
                     SharedPreferences sp = getSharedPreferences(PREFS_APP_UPDATE, MODE_PRIVATE);
-                    String lastHandled = sp.getString(KEY_LAST_HANDLED_MANIFEST_VERSION, "");
+                    String lastHandled = sp.getString(KEY_LAST_HANDLED_MANIFEST_VERSION, "1");
                     if (!manifest.version.equals(lastHandled)) {
-                        // Update last handled immediately to ensure one-time behavior
+                        // Mark new version as handled to enforce one-time prompt per version
                         sp.edit().putString(KEY_LAST_HANDLED_MANIFEST_VERSION, manifest.version).apply();
                         runOnUiThread(() -> {
                             Intent intent = new Intent(FragmentMainActivity.this, com.cinecraze.free.ui.PlaylistDownloadActivityFlexible.class);
