@@ -45,12 +45,7 @@
         <activity
             android:name=".ui.PlaylistDownloadActivityFlexible"
             android:exported="true"
-            android:theme="@style/Theme.CineCraze.NoActionBar">
-            <intent-filter>
-                <action android:name="android.intent.action.MAIN" />
-                <category android:name="android.intent.category.LAUNCHER" />
-            </intent-filter>
-        </activity>
+            android:theme="@style/Theme.CineCraze.NoActionBar" />
         <activity
             android:name=".ui.PlaylistDownloadActivity"
             android:exported="false"
@@ -62,7 +57,12 @@
         <activity
             android:name=".FragmentMainActivity"
             android:exported="true"
-            android:theme="@style/Theme.CineCraze.NoActionBar" />
+            android:theme="@style/Theme.CineCraze.NoActionBar">
+            <intent-filter>
+                <action android:name="android.intent.action.MAIN" />
+                <category android:name="android.intent.category.LAUNCHER" />
+            </intent-filter>
+        </activity>
         <activity
             android:name=".DetailsActivity"
             android:configChanges="keyboard|keyboardHidden|orientation|screenSize|screenLayout|smallestScreenSize|uiMode"

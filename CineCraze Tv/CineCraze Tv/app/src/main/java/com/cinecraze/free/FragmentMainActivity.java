@@ -34,6 +34,12 @@ import java.util.Locale;
 import retrofit2.Call;
 import retrofit2.Callback;
 import retrofit2.Response;
+import android.content.Intent;
+import android.content.SharedPreferences;
+import android.os.Handler;
+import android.os.Looper;
+
+import com.cinecraze.free.utils.EnhancedUpdateManagerFlexible;
 
 /**
  * SWIPE-ENABLED FRAGMENT-BASED IMPLEMENTATION
@@ -72,6 +78,21 @@ public class FragmentMainActivity extends AppCompatActivity {
     private LinearLayout bannerAdContainer;
     private AdView bannerAdView;
 
+    private static final String PREFS_APP_UPDATE = "app_open_update_prefs";
+    private static final String KEY_LAST_HANDLED_MANIFEST_VERSION = "last_handled_manifest_version";
+    private static final long MANIFEST_POLL_INTERVAL_MS = 5 * 60 * 1000; // 5 minutes
+
+    private final Handler manifestHandler = new Handler(Looper.getMainLooper());
+    private final Runnable manifestPoller = new Runnable() {
+        @Override
+        public void run() {
+            if (!isFinishing() && !isDestroyed()) {
+                checkManifestAndMaybeForceUpdate();
+                manifestHandler.postDelayed(this, MANIFEST_POLL_INTERVAL_MS);
+            }
+        }
+    };
+
     @Override
     protected void onCreate(Bundle savedInstanceState) {
         super.onCreate(savedInstanceState);
@@ -88,6 +109,8 @@ public class FragmentMainActivity extends AppCompatActivity {
         // Preflight: if cache is invalid, prompt before initial bulk download
         if (dataRepository.hasValidCache()) {
             startFragments();
+            // Start manifest watcher since user is in app already
+            manifestHandler.postDelayed(manifestPoller, MANIFEST_POLL_INTERVAL_MS);
         } else {
             preflightAndPrompt();
         }
@@ -105,6 +128,11 @@ public class FragmentMainActivity extends AppCompatActivity {
         new android.os.Handler().postDelayed(() -> {
             showInterstitialAdIfReady();
         }, 2000); // 2 second delay
+        // Immediately check for manifest update on app open
+        checkManifestAndMaybeForceUpdate();
+        // Ensure manifest watcher is running when main UI is active
+        manifestHandler.removeCallbacks(manifestPoller);
+        manifestHandler.postDelayed(manifestPoller, MANIFEST_POLL_INTERVAL_MS);
     }
 
     private void preflightAndPrompt() {
@@ -484,6 +512,7 @@ public class FragmentMainActivity extends AppCompatActivity {
         if (adsManager != null) {
             adsManager.destroyAds();
         }
+        manifestHandler.removeCallbacks(manifestPoller);
     }
 
     @Override
@@ -536,5 +565,51 @@ public class FragmentMainActivity extends AppCompatActivity {
             params.setMargins(0, 0, 0, bottomMarginInPixels);
             mainViewPager.setLayoutParams(params);
         }
+    }
+
+    private void checkManifestAndMaybeForceUpdate() {
+        try {
+            EnhancedUpdateManagerFlexible updateManager = new EnhancedUpdateManagerFlexible(this);
+            if (!updateManager.isDatabaseExists()) {
+                return;
+            }
+            updateManager.checkForUpdates(new EnhancedUpdateManagerFlexible.UpdateCallback() {
+                @Override
+                public void onUpdateCheckStarted() { }
+
+                @Override
+                public void onUpdateAvailable(EnhancedUpdateManagerFlexible.ManifestInfo manifestInfo) {
+                    // Only force prompt if this manifest version hasn't been handled yet
+                    SharedPreferences sp = getSharedPreferences(PREFS_APP_UPDATE, MODE_PRIVATE);
+                    String lastHandled = sp.getString(KEY_LAST_HANDLED_MANIFEST_VERSION, "");
+                    String newVersion = manifestInfo.version == null ? "" : manifestInfo.version;
+                    if (!newVersion.isEmpty() && !newVersion.equals(lastHandled)) {
+                        sp.edit().putString(KEY_LAST_HANDLED_MANIFEST_VERSION, newVersion).apply();
+                        // Launch the download activity on top to force user to update playlist
+                        Intent intent = new Intent(FragmentMainActivity.this, com.cinecraze.free.ui.PlaylistDownloadActivityFlexible.class);
+                        intent.addFlags(Intent.FLAG_ACTIVITY_NEW_TASK);
+                        startActivity(intent);
+                    }
+                }
+
+                @Override
+                public void onNoUpdateAvailable() { }
+
+                @Override
+                public void onUpdateCheckFailed(String error) { }
+
+                @Override
+                public void onUpdateDownloadStarted() { }
+
+                @Override
+                public void onUpdateDownloadProgress(int progress) { }
+
+                @Override
+                public void onUpdateDownloadCompleted() { }
+
+                @Override
+                public void onUpdateDownloadFailed(String error) { }
+            });
+        } catch (Exception ignored) { }
     }
 }
