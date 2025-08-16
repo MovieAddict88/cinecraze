@@ -113,57 +113,18 @@ public class FragmentMainActivity extends AppCompatActivity {
     }
 
     private void preflightAndPrompt() {
-        ApiService api = RetrofitClient.getClient().create(ApiService.class);
-        api.headPlaylist().enqueue(new Callback<Void>() {
-            @Override
-            public void onResponse(Call<Void> call, Response<Void> response) {
-                long contentLength = 0L;
-                try {
-                    String len = response.headers().get("Content-Length");
-                    if (len != null) contentLength = Long.parseLong(len);
-                } catch (Exception ignored) {}
-                showDownloadPrompt(contentLength > 0 ? contentLength : -1L);
-            }
-
-            @Override
-            public void onFailure(Call<Void> call, Throwable t) {
-                showDownloadPrompt(-1L);
-            }
-        });
+        // Remove annoying download dialog - start download directly
+        startInitialDownload(-1L);
     }
 
-    private void showDownloadPrompt(long contentLengthBytes) {
-        String sizeText;
-        if (contentLengthBytes > 0) {
-            double mb = contentLengthBytes / (1024.0 * 1024.0);
-            sizeText = String.format(Locale.getDefault(), "%.1f MB", mb);
-        } else {
-            sizeText = "unknown size";
-        }
 
-        new AlertDialog.Builder(this)
-            .setTitle("Download required")
-            .setMessage("Initial data needs to be downloaded (" + sizeText + "). Continue?")
-            .setPositiveButton("Download", (dialog, which) -> startInitialDownload(contentLengthBytes))
-            .setNegativeButton("Cancel", (dialog, which) -> {
-                // User canceled; you can finish or keep minimal UI
-                finish();
-            })
-            .setCancelable(false)
-            .show();
-    }
-
-    private AlertDialog downloadingDialog;
 
     private void startInitialDownload(long estimatedBytes) {
-        showDownloadingDialog(estimatedBytes);
+        // Remove downloading dialog - download silently
         dataRepository.ensureDataAvailable(new DataRepository.DataCallback() {
             @Override
             public void onSuccess(java.util.List<com.cinecraze.free.models.Entry> entries) {
                 runOnUiThread(() -> {
-                    if (downloadingDialog != null && downloadingDialog.isShowing()) {
-                        downloadingDialog.dismiss();
-                    }
                     startFragments();
                 });
             }
@@ -171,9 +132,6 @@ public class FragmentMainActivity extends AppCompatActivity {
             @Override
             public void onError(String error) {
                 runOnUiThread(() -> {
-                    if (downloadingDialog != null && downloadingDialog.isShowing()) {
-                        downloadingDialog.dismiss();
-                    }
                     android.widget.Toast.makeText(FragmentMainActivity.this, "Failed to initialize: " + error, android.widget.Toast.LENGTH_LONG).show();
                     finish();
                 });
@@ -181,44 +139,7 @@ public class FragmentMainActivity extends AppCompatActivity {
         });
     }
 
-    private void showDownloadingDialog(long estimatedBytes) {
-        String sizeText;
-        if (estimatedBytes > 0) {
-            double mb = estimatedBytes / (1024.0 * 1024.0);
-            sizeText = String.format(Locale.getDefault(), "%.1f MB", mb);
-        } else {
-            sizeText = "unknown size";
-        }
 
-        android.widget.LinearLayout container = new android.widget.LinearLayout(this);
-        container.setOrientation(android.widget.LinearLayout.HORIZONTAL);
-        int padding = (int) (16 * getResources().getDisplayMetrics().density);
-        container.setPadding(padding, padding, padding, padding);
-
-        android.widget.ProgressBar progressBar = new android.widget.ProgressBar(this);
-        progressBar.setIndeterminate(true);
-        android.widget.LinearLayout.LayoutParams pbParams = new android.widget.LinearLayout.LayoutParams(
-            (int) (24 * getResources().getDisplayMetrics().density),
-            (int) (24 * getResources().getDisplayMetrics().density)
-        );
-        pbParams.setMargins(0, 0, padding, 0);
-        progressBar.setLayoutParams(pbParams);
-
-        android.widget.TextView message = new android.widget.TextView(this);
-        message.setText("Downloading data (" + sizeText + ")...\nPlease wait, this may take a moment.");
-        message.setTextSize(14);
-
-        container.addView(progressBar);
-        container.addView(message);
-
-        downloadingDialog = new AlertDialog.Builder(this)
-            .setTitle("Downloading")
-            .setView(container)
-            .setCancelable(false)
-            .create();
-        downloadingDialog.setCanceledOnTouchOutside(false);
-        downloadingDialog.show();
-    }
 
     private void setupStatusBar() {
         if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.LOLLIPOP) {
