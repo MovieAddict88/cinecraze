@@ -118,11 +118,13 @@ public class FragmentMainActivity extends AppCompatActivity {
         initializeAds();
         applyInitialTabFromIntent();
         
+        // Background update check
+        com.cinecraze.free.remote.RemoteDatabaseManager.checkForUpdateAndPrompt(this);
+        
         // Show interstitial ad on app launch (if ready and enabled)
-        // Delay to ensure ads are loaded first
         new android.os.Handler().postDelayed(() -> {
             showInterstitialAdIfReady();
-        }, 2000); // 2 second delay
+        }, 2000);
     }
 
     private void preflightAndPrompt() {

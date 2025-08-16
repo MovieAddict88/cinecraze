@@ -14,9 +14,12 @@ public class RemoteDbConfig {
 
     // The final installed database file name (must match Room DB name)
     public static final String ROOM_DATABASE_NAME = "cinecraze_database";
+    public static final String STAGED_DATABASE_NAME = "cinecraze_database.next";
 
     // SharedPreferences keys
     public static final String PREFS_NAME = "remote_db_prefs";
     public static final String KEY_INSTALLED_VERSION = "installed_db_version";
     public static final String KEY_INSTALLED_SHA256 = "installed_db_sha256";
+    public static final String KEY_PENDING_VERSION = "pending_db_version";
+    public static final String KEY_PENDING_SHA256 = "pending_db_sha256";
 }

@@ -1,11 +1,9 @@
 package com.cinecraze.free.remote;
 
 import android.content.Context;
-import android.content.DialogInterface;
 import android.content.SharedPreferences;
 import android.util.Log;
 
-import androidx.annotation.Nullable;
 import androidx.appcompat.app.AlertDialog;
 
 import com.google.gson.Gson;
@@ -35,8 +33,92 @@ public class RemoteDatabaseManager {
         return dbFile.exists() && dbFile.length() > 0;
     }
 
-    @Nullable
-    public static RemoteDbManifest fetchManifest() throws Exception {
+    public static void checkForUpdateAndPrompt(Context context) {
+        new Thread(() -> {
+            try {
+                RemoteDbManifest manifest = fetchManifest();
+                if (manifest == null || manifest.version == null) return;
+                SharedPreferences prefs = context.getSharedPreferences(RemoteDbConfig.PREFS_NAME, Context.MODE_PRIVATE);
+                String installed = prefs.getString(RemoteDbConfig.KEY_INSTALLED_VERSION, "");
+                if (!installed.equals(manifest.version)) {
+                    String sizeText = manifest.sizeBytes > 0 ? String.format(Locale.getDefault(), "%.1f MB", manifest.sizeBytes / (1024.0 * 1024.0)) : "unknown";
+                    android.os.Handler main = new android.os.Handler(context.getMainLooper());
+                    main.post(() -> {
+                        new AlertDialog.Builder(context)
+                            .setTitle("Update available")
+                            .setMessage("New resources available (" + sizeText + "). Update now?")
+                            .setPositiveButton("Update", (d,w) -> stageUpdate(context, manifest))
+                            .setNegativeButton("Later", null)
+                            .show();
+                    });
+                }
+            } catch (Exception ignored) {}
+        }).start();
+    }
+
+    private static void stageUpdate(Context context, RemoteDbManifest manifest) {
+        new Thread(() -> {
+            try {
+                File cacheDir = context.getCacheDir();
+                File tmp = new File(cacheDir, "cinecraze.db" + (manifest.zipped ? ".zip" : ".tmp"));
+                downloadToFile(manifest.dbUrl, tmp);
+
+                File finalDb;
+                if (manifest.zipped) {
+                    File unzipTarget = new File(cacheDir, "cinecraze_unzipped.db");
+                    unzipSingle(tmp, unzipTarget);
+                    finalDb = unzipTarget;
+                } else {
+                    finalDb = tmp;
+                }
+
+                if (manifest.sha256 != null && !manifest.sha256.isEmpty()) {
+                    String actual = sha256Of(finalDb);
+                    if (!manifest.sha256.equalsIgnoreCase(actual)) {
+                        return;
+                    }
+                }
+
+                // Stage file
+                File staged = context.getDatabasePath(RemoteDbConfig.STAGED_DATABASE_NAME);
+                staged.getParentFile().mkdirs();
+                if (staged.exists()) staged.delete();
+                copy(finalDb, staged);
+
+                SharedPreferences prefs = context.getSharedPreferences(RemoteDbConfig.PREFS_NAME, Context.MODE_PRIVATE);
+                prefs.edit()
+                    .putString(RemoteDbConfig.KEY_PENDING_VERSION, manifest.version)
+                    .putString(RemoteDbConfig.KEY_PENDING_SHA256, manifest.sha256 != null ? manifest.sha256 : "")
+                    .apply();
+
+                android.os.Handler main = new android.os.Handler(context.getMainLooper());
+                main.post(() -> new AlertDialog.Builder(context)
+                    .setTitle("Restart required")
+                    .setMessage("Resources will be updated next time you open the app.")
+                    .setPositiveButton("OK", null)
+                    .show());
+            } catch (Exception e) {
+                Log.e(TAG, "stageUpdate error: " + e.getMessage(), e);
+            }
+        }).start();
+    }
+
+    public static void activateStagedIfAny(Context context) {
+        SharedPreferences prefs = context.getSharedPreferences(RemoteDbConfig.PREFS_NAME, Context.MODE_PRIVATE);
+        String pending = prefs.getString(RemoteDbConfig.KEY_PENDING_VERSION, "");
+        if (pending == null || pending.isEmpty()) return;
+        File staged = context.getDatabasePath(RemoteDbConfig.STAGED_DATABASE_NAME);
+        if (!staged.exists()) return;
+        File installed = context.getDatabasePath(RemoteDbConfig.ROOM_DATABASE_NAME);
+        if (installed.exists()) installed.delete();
+        staged.renameTo(installed);
+        prefs.edit()
+            .putString(RemoteDbConfig.KEY_INSTALLED_VERSION, pending)
+            .putString(RemoteDbConfig.KEY_PENDING_VERSION, "")
+            .apply();
+    }
+
+    private static RemoteDbManifest fetchManifest() throws Exception {
         HttpURLConnection conn = (HttpURLConnection) new URL(RemoteDbConfig.MANIFEST_URL).openConnection();
         conn.setConnectTimeout(15000);
         conn.setReadTimeout(20000);
@@ -53,8 +135,8 @@ public class RemoteDatabaseManager {
     public static void ensureDatabase(Context context, boolean showPrompt, SetupCallback callback) {
         new Thread(() -> {
             try {
+                activateStagedIfAny(context);
                 if (isInstalled(context)) {
-                    // Optional: check updates in background later
                     callback.onReady();
                     return;
                 }
@@ -66,7 +148,6 @@ public class RemoteDatabaseManager {
                 String sizeText = manifest.sizeBytes > 0 ? String.format(Locale.getDefault(), "%.1f MB", manifest.sizeBytes / (1024.0 * 1024.0)) : "unknown";
 
                 if (showPrompt) {
-                    // Show a blocking dialog on UI thread
                     android.os.Handler main = new android.os.Handler(context.getMainLooper());
                     main.post(() -> {
                         new AlertDialog.Builder(new androidx.appcompat.view.ContextThemeWrapper(context, androidx.appcompat.R.style.Theme_AppCompat_Dialog))
@@ -90,7 +171,6 @@ public class RemoteDatabaseManager {
     private static void startDownload(Context context, RemoteDbManifest manifest, SetupCallback callback) {
         new Thread(() -> {
             try {
-                // Download to cache
                 File cacheDir = context.getCacheDir();
                 File tmp = new File(cacheDir, "cinecraze.db" + (manifest.zipped ? ".zip" : ".tmp"));
                 downloadToFile(manifest.dbUrl, tmp);
@@ -112,14 +192,11 @@ public class RemoteDatabaseManager {
                     }
                 }
 
-                // Move into Room database path
                 File dbPath = context.getDatabasePath(RemoteDbConfig.ROOM_DATABASE_NAME);
                 dbPath.getParentFile().mkdirs();
-                // Delete old if exists
                 if (dbPath.exists()) dbPath.delete();
                 copy(finalDb, dbPath);
 
-                // Persist installed version
                 SharedPreferences prefs = context.getSharedPreferences(RemoteDbConfig.PREFS_NAME, Context.MODE_PRIVATE);
                 prefs.edit()
                         .putString(RemoteDbConfig.KEY_INSTALLED_VERSION, manifest.version != null ? manifest.version : "")
