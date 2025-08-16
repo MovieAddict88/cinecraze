@@ -164,7 +164,8 @@ public class FragmentMainActivity extends AppCompatActivity {
                         bytes = (long) (manifestInfo.database.sizeMb * 1024 * 1024);
                     }
                 }
-                runOnUiThread(() -> showDownloadPrompt(bytes));
+                final long bytesForUi = bytes;
+                runOnUiThread(() -> showDownloadPrompt(bytesForUi));
             }
 
             @Override
