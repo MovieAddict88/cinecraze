@@ -43,15 +43,26 @@
             </intent-filter>
         </activity>
         <activity
-            android:name=".FragmentMainActivity"
+            android:name=".ui.PlaylistDownloadActivityEnhanced"
             android:exported="true"
             android:theme="@style/Theme.CineCraze.NoActionBar">
             <intent-filter>
                 <action android:name="android.intent.action.MAIN" />
-
                 <category android:name="android.intent.category.LAUNCHER" />
             </intent-filter>
         </activity>
+        <activity
+            android:name=".ui.PlaylistDownloadActivity"
+            android:exported="false"
+            android:theme="@style/Theme.CineCraze.NoActionBar" />
+        <activity
+            android:name=".ui.DatabaseInfoActivity"
+            android:exported="false"
+            android:theme="@style/Theme.CineCraze.NoActionBar" />
+        <activity
+            android:name=".FragmentMainActivity"
+            android:exported="true"
+            android:theme="@style/Theme.CineCraze.NoActionBar" />
         <activity
             android:name=".DetailsActivity"
             android:configChanges="keyboard|keyboardHidden|orientation|screenSize|screenLayout|smallestScreenSize|uiMode"
