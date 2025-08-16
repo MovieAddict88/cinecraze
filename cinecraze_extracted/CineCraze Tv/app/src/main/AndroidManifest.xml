@@ -59,6 +59,9 @@
             android:name=".ui.DatabaseInfoActivity"
             android:exported="false"
             android:theme="@style/Theme.CineCraze.NoActionBar" />
+        <service
+            android:name=".utils.BackgroundUpdateService"
+            android:exported="false" />
         <activity
             android:name=".FragmentMainActivity"
             android:exported="true"
