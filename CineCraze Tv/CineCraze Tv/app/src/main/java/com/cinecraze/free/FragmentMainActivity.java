@@ -25,10 +25,15 @@ import com.cinecraze.free.net.RetrofitClient;
 import com.cinecraze.free.ads.AdsManager;
 import com.cinecraze.free.ads.AdsApiService;
 import com.cinecraze.free.ads.AdsConfig;
+import com.google.gson.Gson;
 import com.gauravk.bubblenavigation.BubbleNavigationConstraintView;
 import com.google.android.material.floatingactionbutton.FloatingActionButton;
 import com.google.android.gms.ads.AdView;
 
+import java.io.IOException;
+import java.io.InputStream;
+import java.net.HttpURLConnection;
+import java.net.URL;
 import java.util.Locale;
 
 import retrofit2.Call;
@@ -86,6 +91,7 @@ public class FragmentMainActivity extends AppCompatActivity {
     private static final String PREFS_APP_UPDATE = "app_open_update_prefs";
     private static final String KEY_LAST_HANDLED_MANIFEST_VERSION = "last_handled_manifest_version";
     private static final long MANIFEST_POLL_INTERVAL_MS = 5 * 60 * 1000; // 5 minutes
+    private static final String MANIFEST_URL = "https://github.com/MovieAddict88/Movie-Source/raw/main/manifest.json";
 
     private final Handler manifestHandler = new Handler(Looper.getMainLooper());
     private final Runnable manifestPoller = new Runnable() {
@@ -150,7 +156,14 @@ public class FragmentMainActivity extends AppCompatActivity {
             @Override
             public void onUpdateAvailable(com.cinecraze.free.utils.EnhancedUpdateManagerFlexible.ManifestInfo manifestInfo) {
                 initialManifestInfo = manifestInfo;
-                long bytes = (manifestInfo != null && manifestInfo.database != null) ? manifestInfo.database.sizeBytes : -1L;
+                long bytes = -1L;
+                if (manifestInfo != null && manifestInfo.database != null) {
+                    if (manifestInfo.database.sizeBytes > 0) {
+                        bytes = manifestInfo.database.sizeBytes;
+                    } else if (manifestInfo.database.sizeMb > 0) {
+                        bytes = (long) (manifestInfo.database.sizeMb * 1024 * 1024);
+                    }
+                }
                 runOnUiThread(() -> showDownloadPrompt(bytes));
             }
 
@@ -240,6 +253,13 @@ public class FragmentMainActivity extends AppCompatActivity {
                     if (downloadingDialog != null && downloadingDialog.isShowing()) {
                         downloadingDialog.dismiss();
                     }
+                    // Mark this manifest version as handled so app-open update won't immediately trigger
+                    try {
+                        if (initialManifestInfo != null && initialManifestInfo.version != null && !initialManifestInfo.version.isEmpty()) {
+                            SharedPreferences sp = getSharedPreferences(PREFS_APP_UPDATE, MODE_PRIVATE);
+                            sp.edit().putString(KEY_LAST_HANDLED_MANIFEST_VERSION, initialManifestInfo.version).apply();
+                        }
+                    } catch (Exception ignored) {}
                     startFragments();
                 });
             }
@@ -622,47 +642,57 @@ public class FragmentMainActivity extends AppCompatActivity {
 
     private void checkManifestAndMaybeForceUpdate() {
         try {
+            // Only check when DB exists
             EnhancedUpdateManagerFlexible updateManager = new EnhancedUpdateManagerFlexible(this);
             if (!updateManager.isDatabaseExists()) {
                 return;
             }
-            updateManager.checkForUpdates(new EnhancedUpdateManagerFlexible.UpdateCallback() {
-                @Override
-                public void onUpdateCheckStarted() { }
-
-                @Override
-                public void onUpdateAvailable(EnhancedUpdateManagerFlexible.ManifestInfo manifestInfo) {
-                    // Only force prompt if this manifest version hasn't been handled yet
+            new Thread(() -> {
+                HttpURLConnection connection = null;
+                InputStream inputStream = null;
+                try {
+                    URL url = new URL(MANIFEST_URL);
+                    connection = (HttpURLConnection) url.openConnection();
+                    connection.setRequestMethod("GET");
+                    connection.setConnectTimeout(15000);
+                    connection.setReadTimeout(15000);
+                    connection.setRequestProperty("User-Agent", "CineCraze-Android-App");
+                    int responseCode = connection.getResponseCode();
+                    if (responseCode != HttpURLConnection.HTTP_OK) {
+                        return;
+                    }
+                    inputStream = connection.getInputStream();
+                    byte[] buffer = new byte[8192];
+                    StringBuilder result = new StringBuilder();
+                    int bytesRead;
+                    while ((bytesRead = inputStream.read(buffer)) != -1) {
+                        result.append(new String(buffer, 0, bytesRead));
+                    }
+                    Gson gson = new Gson();
+                    com.cinecraze.free.utils.EnhancedUpdateManagerFlexible.ManifestInfo manifest =
+                        gson.fromJson(result.toString(), com.cinecraze.free.utils.EnhancedUpdateManagerFlexible.ManifestInfo.class);
+                    if (manifest == null || manifest.version == null || manifest.version.isEmpty()) {
+                        return;
+                    }
                     SharedPreferences sp = getSharedPreferences(PREFS_APP_UPDATE, MODE_PRIVATE);
                     String lastHandled = sp.getString(KEY_LAST_HANDLED_MANIFEST_VERSION, "");
-                    String newVersion = manifestInfo.version == null ? "" : manifestInfo.version;
-                    if (!newVersion.isEmpty() && !newVersion.equals(lastHandled)) {
-                        sp.edit().putString(KEY_LAST_HANDLED_MANIFEST_VERSION, newVersion).apply();
-                        // Launch the download activity on top to force user to update playlist
-                        Intent intent = new Intent(FragmentMainActivity.this, com.cinecraze.free.ui.PlaylistDownloadActivityFlexible.class);
-                        intent.addFlags(Intent.FLAG_ACTIVITY_NEW_TASK);
-                        startActivity(intent);
+                    if (!manifest.version.equals(lastHandled)) {
+                        // Update last handled immediately to ensure one-time behavior
+                        sp.edit().putString(KEY_LAST_HANDLED_MANIFEST_VERSION, manifest.version).apply();
+                        runOnUiThread(() -> {
+                            Intent intent = new Intent(FragmentMainActivity.this, com.cinecraze.free.ui.PlaylistDownloadActivityFlexible.class);
+                            intent.addFlags(Intent.FLAG_ACTIVITY_NEW_TASK);
+                            startActivity(intent);
+                        });
                     }
+                } catch (Exception ignored) {
+                } finally {
+                    try {
+                        if (inputStream != null) inputStream.close();
+                        if (connection != null) connection.disconnect();
+                    } catch (IOException ignored2) {}
                 }
-
-                @Override
-                public void onNoUpdateAvailable() { }
-
-                @Override
-                public void onUpdateCheckFailed(String error) { }
-
-                @Override
-                public void onUpdateDownloadStarted() { }
-
-                @Override
-                public void onUpdateDownloadProgress(int progress) { }
-
-                @Override
-                public void onUpdateDownloadCompleted() { }
-
-                @Override
-                public void onUpdateDownloadFailed(String error) { }
-            });
+            }).start();
         } catch (Exception ignored) { }
     }
 }
