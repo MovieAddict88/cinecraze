@@ -193,17 +193,15 @@ public class DetailsActivity extends AppCompatActivity {
             setupServerSelector();
 
             // Setup TV Series components ONLY if it's a TV series
-            boolean looksLikeSeries =
-                (currentEntry.getSeasons() != null && !currentEntry.getSeasons().isEmpty()) ||
-                (currentEntry.getMainCategory() != null && (
-                    currentEntry.getMainCategory().toLowerCase().contains("series") ||
-                    currentEntry.getMainCategory().toLowerCase().contains("tv")
-                ));
-            if (looksLikeSeries) {
+            if ("TV Series".equalsIgnoreCase(currentEntry.getMainCategory()) ||
+                "Series".equalsIgnoreCase(currentEntry.getMainCategory()) ||
+                "TV".equalsIgnoreCase(currentEntry.getMainCategory())) {
                 // For large series, seasons might be loaded asynchronously
+                // So we'll setup TV components after data loading
                 setupTVSeriesComponents();
 
                 // Hide floating play button for TV series to avoid confusion
+                // Users should select episodes from the seasons section
                 if (floatingActionButtonPlay != null) {
                     floatingActionButtonPlay.setVisibility(View.GONE);
                     Log.d(TAG, "FLOATING PLAY BUTTON HIDDEN for TV series: " + currentEntry.getMainCategory());
@@ -475,27 +473,28 @@ public class DetailsActivity extends AppCompatActivity {
         };
 
         // Optimize for large datasets
-        layoutManager.setInitialPrefetchItemCount(Math.min(currentSeason.getEpisodes().size(), 6));
+        layoutManager.setInitialPrefetchItemCount(Math.min(currentSeason.getEpisodes().size(), 10));
         episodeRecyclerView.setLayoutManager(layoutManager);
 
-        // Memory-conscious settings for very large episode lists
-        episodeRecyclerView.setItemViewCacheSize(8);
-        episodeRecyclerView.setDrawingCacheEnabled(false);
+        // Enhanced performance optimizations for very large episode lists
+        //episodeRecyclerView.setHasFixedSize(true); // Items have fixed size
+        episodeRecyclerView.setItemViewCacheSize(20); // Increased cache for large lists
+        episodeRecyclerView.setDrawingCacheEnabled(true);
         episodeRecyclerView.setDrawingCacheQuality(View.DRAWING_CACHE_QUALITY_LOW);
 
         // Enable nested scrolling for better performance
         episodeRecyclerView.setNestedScrollingEnabled(true);
 
-        // For very large episode lists (500+), implement additional optimizations
+        // For very large episode lists (500+), implement virtualization
         if (currentSeason.getEpisodes().size() > 500) {
-            Log.i(TAG, "Large episode list detected (" + currentSeason.getEpisodes().size() + " episodes). Enabling extra optimizations.");
+            Log.i(TAG, "Large episode list detected (" + currentSeason.getEpisodes().size() + " episodes). Enabling optimizations.");
 
             // Use a more conservative item view cache for memory efficiency
-            episodeRecyclerView.setItemViewCacheSize(6);
+            episodeRecyclerView.setItemViewCacheSize(15);
 
             // Enable view recycling pool for better memory management
             RecyclerView.RecycledViewPool viewPool = new RecyclerView.RecycledViewPool();
-            viewPool.setMaxRecycledViews(0, 20);
+            viewPool.setMaxRecycledViews(0, 30); // Allow up to 30 recycled views
             episodeRecyclerView.setRecycledViewPool(viewPool);
 
             // Show a warning message for very large lists
@@ -709,29 +708,6 @@ public class DetailsActivity extends AppCompatActivity {
                     Log.i(TAG, "Loading full data for large series with ID: " + entryId);
                     // Load full data from database or repository
                     loadFullEntryData(entry, entryId);
-                } else {
-                    // For regular entries, hydrate missing fields from DB if available
-                    try {
-                        boolean isSeries = (entry.getMainCategory() != null) && (
-                                entry.getMainCategory().toLowerCase().contains("series") ||
-                                entry.getMainCategory().toLowerCase().contains("tv"));
-
-                        DataRepository repo = new DataRepository(this);
-
-                        if (isSeries && (entry.getSeasons() == null || entry.getSeasons().isEmpty())) {
-                            Entry full = repo.loadFullEntry(entry.getTitle(), entry.getYearString());
-                            if (full != null && full.getSeasons() != null && !full.getSeasons().isEmpty()) {
-                                entry.setSeasons(full.getSeasons());
-                            }
-                        }
-
-                        if (!isSeries && (entry.getServers() == null || entry.getServers().isEmpty())) {
-                            Entry full = repo.loadFullEntry(entry.getTitle(), entry.getYearString());
-                            if (full != null && full.getServers() != null && !full.getServers().isEmpty()) {
-                                entry.setServers(full.getServers());
-                            }
-                        }
-                    } catch (Exception ignored) {}
                 }
 
                 return entry;
@@ -761,8 +737,17 @@ public class DetailsActivity extends AppCompatActivity {
 
                 Log.i(TAG, "Loading full data for large series with ID: " + entryId);
 
-                // Load the complete entry data from the repository (full row with JSON)
-                Entry foundEntry = dataRepository.loadFullEntry(entry.getTitle(), entry.getYearString());
+                // Load the complete entry data from the repository
+                List<Entry> allEntries = dataRepository.getAllCachedEntries();
+                Entry foundEntry = null;
+
+                // Find the entry with the matching ID
+                for (Entry fullEntry : allEntries) {
+                    if (fullEntry.getId() == entryId) {
+                        foundEntry = fullEntry;
+                        break;
+                    }
+                }
 
                 final Entry finalEntry = foundEntry;
 

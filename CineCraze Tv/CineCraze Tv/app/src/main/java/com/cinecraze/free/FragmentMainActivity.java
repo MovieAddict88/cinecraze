@@ -35,8 +35,6 @@ import retrofit2.Call;
 import retrofit2.Callback;
 import retrofit2.Response;
 
-import com.cinecraze.free.remote.RemoteDatabaseManager;
-
 /**
  * SWIPE-ENABLED FRAGMENT-BASED IMPLEMENTATION
  *
@@ -83,35 +81,16 @@ public class FragmentMainActivity extends AppCompatActivity {
 
         setContentView(R.layout.activity_main_fragment);
 
-        // Delay repository creation until DB is installed
-        dataRepository = null;
+        dataRepository = new DataRepository(this);
 
         initializeViews();
 
-        // Ensure remote DB is installed before starting fragments
-        RemoteDatabaseManager.ensureDatabase(this, true, new RemoteDatabaseManager.SetupCallback() {
-            @Override
-            public void onReady() {
-                runOnUiThread(() -> {
-                    // Initialize repository after DB is ready
-                    dataRepository = new DataRepository(FragmentMainActivity.this);
-                    startFragments();
-                });
-            }
-
-            @Override
-            public void onError(String error) {
-                runOnUiThread(() -> {
-                    new AlertDialog.Builder(FragmentMainActivity.this)
-                        .setTitle("Initialization failed")
-                        .setMessage("Unable to download required resources: " + error)
-                        .setPositiveButton("Retry", (d,w) -> recreate())
-                        .setNegativeButton("Exit", (d,w) -> finish())
-                        .setCancelable(false)
-                        .show();
-                });
-            }
-        });
+        // Preflight: if cache is invalid, prompt before initial bulk download
+        if (dataRepository.hasValidCache()) {
+            startFragments();
+        } else {
+            preflightAndPrompt();
+        }
     }
 
     private void startFragments() {
@@ -121,13 +100,11 @@ public class FragmentMainActivity extends AppCompatActivity {
         initializeAds();
         applyInitialTabFromIntent();
         
-        // Background update check
-        com.cinecraze.free.remote.RemoteDatabaseManager.checkForUpdateAndPrompt(this);
-        
         // Show interstitial ad on app launch (if ready and enabled)
+        // Delay to ensure ads are loaded first
         new android.os.Handler().postDelayed(() -> {
             showInterstitialAdIfReady();
-        }, 2000);
+        }, 2000); // 2 second delay
     }
 
     private void preflightAndPrompt() {
@@ -492,12 +469,30 @@ public class FragmentMainActivity extends AppCompatActivity {
     }
 
     @Override
+    protected void onDestroy() {
+        super.onDestroy();
+
+        // Unregister ViewPager callback to prevent memory leaks
+        if (mainViewPager != null && pageChangeCallback != null) {
+            mainViewPager.unregisterOnPageChangeCallback(pageChangeCallback);
+        }
+
+        // Clean up ads
+        if (bannerAdView != null) {
+            bannerAdView.destroy();
+        }
+        if (adsManager != null) {
+            adsManager.destroyAds();
+        }
+    }
+
+    @Override
     protected void onResume() {
         super.onResume();
         
         // Resume banner ad if available
         if (bannerAdView != null) {
-            try { bannerAdView.resume(); } catch (Exception ignored) {}
+            bannerAdView.resume();
         }
     }
 
@@ -507,27 +502,7 @@ public class FragmentMainActivity extends AppCompatActivity {
         
         // Pause banner ad if available
         if (bannerAdView != null) {
-            try { bannerAdView.pause(); } catch (Exception ignored) {}
-        }
-    }
-
-    @Override
-    protected void onDestroy() {
-        super.onDestroy();
-
-        // Unregister ViewPager callback to prevent memory leaks
-        if (mainViewPager != null && pageChangeCallback != null) {
-            try { mainViewPager.unregisterOnPageChangeCallback(pageChangeCallback); } catch (Exception ignored) {}
-        }
-
-        // Clean up ads
-        if (bannerAdView != null) {
-            try { bannerAdView.destroy(); } catch (Exception ignored) {}
-            bannerAdView = null;
-        }
-        if (adsManager != null) {
-            try { adsManager.destroyAds(); } catch (Exception ignored) {}
-            adsManager = null;
+            bannerAdView.pause();
         }
     }
 

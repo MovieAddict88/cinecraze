@@ -109,8 +109,7 @@ public class PaginatedMovieAdapter extends RecyclerView.Adapter<RecyclerView.Vie
             Entry entry = entryList.get(position);
 
             movieHolder.title.setText(entry.getTitle());
-            // Use sized/cached image load to reduce memory
-            ImageUtils.loadPosterImage(context, entry.getPoster(), movieHolder.poster);
+            Glide.with(context).load(entry.getPoster()).into(movieHolder.poster);
             movieHolder.rating.setRating(entry.getRating());
 
             if (movieHolder.description != null) {

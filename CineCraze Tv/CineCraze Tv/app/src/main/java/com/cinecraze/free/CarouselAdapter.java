@@ -53,8 +53,7 @@ public class CarouselAdapter extends RecyclerView.Adapter<CarouselAdapter.ViewHo
         holder.country.setText(entry.getCountry());
         holder.year.setText(String.valueOf(entry.getYear()));
         holder.duration.setText(entry.getDuration());
-        // Use ImageUtils to load banner/poster with caching
-        ImageUtils.loadBannerImage(context, entry.getPoster(), holder.poster);
+        Glide.with(context).load(entry.getPoster()).into(holder.poster);
         
         // Set category badge (on poster) - Genre badge
         setCategoryBadge(holder.categoryBadge, entry.getSubCategory());
