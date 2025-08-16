@@ -85,12 +85,8 @@ public class FragmentMainActivity extends AppCompatActivity {
 
         initializeViews();
 
-        // Preflight: if cache is invalid, prompt before initial bulk download
-        if (dataRepository.hasValidCache()) {
-            startFragments();
-        } else {
-            preflightAndPrompt();
-        }
+        // Start UI immediately; data will be fetched/paginated inside fragments
+        startFragments();
     }
 
     private void startFragments() {
