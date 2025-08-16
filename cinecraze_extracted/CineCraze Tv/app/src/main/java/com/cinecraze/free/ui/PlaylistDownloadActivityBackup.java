@@ -10,15 +10,15 @@ import android.widget.TextView;
 import android.widget.Toast;
 
 import com.cinecraze.free.R;
-import com.cinecraze.free.FragmentMainActivity;
 import com.cinecraze.free.utils.PlaylistDownloadManager;
 
 import java.io.File;
 
 /**
  * Activity for downloading the playlist database from GitHub
+ * Backup version with generic intent approach
  */
-public class PlaylistDownloadActivity extends Activity implements PlaylistDownloadManager.DownloadCallback {
+public class PlaylistDownloadActivityBackup extends Activity implements PlaylistDownloadManager.DownloadCallback {
     
     private static final String TAG = "PlaylistDownloadActivity";
     
@@ -85,9 +85,17 @@ public class PlaylistDownloadActivity extends Activity implements PlaylistDownlo
     }
     
     private void startMainActivity() {
-        Intent intent = new Intent(this, FragmentMainActivity.class);
-        startActivity(intent);
-        finish();
+        // Use generic intent approach to avoid import issues
+        try {
+            // Try to start the main activity using class name
+            Intent intent = new Intent();
+            intent.setClassName(this, "com.cinecraze.free.FragmentMainActivity");
+            startActivity(intent);
+        } catch (Exception e) {
+            // Fallback: show error and close app
+            Toast.makeText(this, "Error starting main activity: " + e.getMessage(), Toast.LENGTH_LONG).show();
+            finish();
+        }
     }
     
     @Override
