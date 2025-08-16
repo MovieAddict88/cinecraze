@@ -193,15 +193,17 @@ public class DetailsActivity extends AppCompatActivity {
             setupServerSelector();
 
             // Setup TV Series components ONLY if it's a TV series
-            if ("TV Series".equalsIgnoreCase(currentEntry.getMainCategory()) ||
-                "Series".equalsIgnoreCase(currentEntry.getMainCategory()) ||
-                "TV".equalsIgnoreCase(currentEntry.getMainCategory())) {
+            boolean looksLikeSeries =
+                (currentEntry.getSeasons() != null && !currentEntry.getSeasons().isEmpty()) ||
+                (currentEntry.getMainCategory() != null && (
+                    currentEntry.getMainCategory().toLowerCase().contains("series") ||
+                    currentEntry.getMainCategory().toLowerCase().contains("tv")
+                ));
+            if (looksLikeSeries) {
                 // For large series, seasons might be loaded asynchronously
-                // So we'll setup TV components after data loading
                 setupTVSeriesComponents();
 
                 // Hide floating play button for TV series to avoid confusion
-                // Users should select episodes from the seasons section
                 if (floatingActionButtonPlay != null) {
                     floatingActionButtonPlay.setVisibility(View.GONE);
                     Log.d(TAG, "FLOATING PLAY BUTTON HIDDEN for TV series: " + currentEntry.getMainCategory());
@@ -708,13 +710,22 @@ public class DetailsActivity extends AppCompatActivity {
                     // Load full data from database or repository
                     loadFullEntryData(entry, entryId);
                 } else {
-                    // For regular entries, if servers are missing, try to hydrate from DB
+                    // For regular entries, hydrate missing fields from DB if available
                     try {
-                        boolean isSeries = "TV Series".equalsIgnoreCase(entry.getMainCategory()) ||
-                                           "Series".equalsIgnoreCase(entry.getMainCategory()) ||
-                                           "TV".equalsIgnoreCase(entry.getMainCategory());
+                        boolean isSeries = (entry.getMainCategory() != null) && (
+                                entry.getMainCategory().toLowerCase().contains("series") ||
+                                entry.getMainCategory().toLowerCase().contains("tv"));
+
+                        DataRepository repo = new DataRepository(this);
+
+                        if (isSeries && (entry.getSeasons() == null || entry.getSeasons().isEmpty())) {
+                            Entry full = repo.loadFullEntry(entry.getTitle(), entry.getYearString());
+                            if (full != null && full.getSeasons() != null && !full.getSeasons().isEmpty()) {
+                                entry.setSeasons(full.getSeasons());
+                            }
+                        }
+
                         if (!isSeries && (entry.getServers() == null || entry.getServers().isEmpty())) {
-                            DataRepository repo = new DataRepository(this);
                             Entry full = repo.loadFullEntry(entry.getTitle(), entry.getYearString());
                             if (full != null && full.getServers() != null && !full.getServers().isEmpty()) {
                                 entry.setServers(full.getServers());
