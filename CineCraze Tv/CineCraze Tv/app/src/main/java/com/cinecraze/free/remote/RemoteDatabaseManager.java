@@ -154,16 +154,24 @@ public class RemoteDatabaseManager {
                 String sizeText = manifest.sizeBytes > 0 ? String.format(Locale.getDefault(), "%.1f MB", manifest.sizeBytes / (1024.0 * 1024.0)) : "unknown";
 
                 if (showPrompt) {
-                    android.os.Handler main = new android.os.Handler(context.getMainLooper());
-                    main.post(() -> {
-                        new AlertDialog.Builder(new androidx.appcompat.view.ContextThemeWrapper(context, androidx.appcompat.R.style.Theme_AppCompat_Dialog))
-                                .setTitle("Download required")
-                                .setMessage("Additional resources required (" + sizeText + "). Download now?")
-                                .setCancelable(false)
-                                .setPositiveButton("Download", (dialog, which) -> startDownload(context, manifest, callback))
-                                .setNegativeButton("Exit", (dialog, which) -> callback.onError("User canceled"))
-                                .show();
-                    });
+                    try {
+                        android.os.Handler main = new android.os.Handler(context.getMainLooper());
+                        main.post(() -> {
+                            try {
+                                new AlertDialog.Builder(new androidx.appcompat.view.ContextThemeWrapper(context, androidx.appcompat.R.style.Theme_AppCompat_Dialog))
+                                        .setTitle("Download required")
+                                        .setMessage("Additional resources required (" + sizeText + "). Download now?")
+                                        .setCancelable(false)
+                                        .setPositiveButton("Download", (dialog, which) -> startDownload(context, manifest, callback))
+                                        .setNegativeButton("Exit", (dialog, which) -> callback.onError("User canceled"))
+                                        .show();
+                            } catch (Exception e) {
+                                callback.onError("Unable to show prompt: " + e.getMessage());
+                            }
+                        });
+                    } catch (Exception e) {
+                        callback.onError("UI error: " + e.getMessage());
+                    }
                 } else {
                     startDownload(context, manifest, callback);
                 }

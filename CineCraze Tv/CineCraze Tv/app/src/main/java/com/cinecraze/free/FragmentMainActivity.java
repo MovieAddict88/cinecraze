@@ -83,7 +83,8 @@ public class FragmentMainActivity extends AppCompatActivity {
 
         setContentView(R.layout.activity_main_fragment);
 
-        dataRepository = new DataRepository(this);
+        // Delay repository creation until DB is installed
+        dataRepository = null;
 
         initializeViews();
 
@@ -92,6 +93,8 @@ public class FragmentMainActivity extends AppCompatActivity {
             @Override
             public void onReady() {
                 runOnUiThread(() -> {
+                    // Initialize repository after DB is ready
+                    dataRepository = new DataRepository(FragmentMainActivity.this);
                     startFragments();
                 });
             }
