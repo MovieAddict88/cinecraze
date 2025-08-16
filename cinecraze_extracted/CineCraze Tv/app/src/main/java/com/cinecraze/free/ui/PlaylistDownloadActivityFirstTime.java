@@ -16,8 +16,8 @@ import com.cinecraze.free.utils.EnhancedUpdateManagerFixed;
 import java.io.File;
 
 /**
- * First-Time Optimized Activity for downloading the playlist database
- * Shows download directly on first install, update check only for existing users
+ * Professional App Open Update Screen
+ * Shows update screen but removes annoying download dialogs
  */
 public class PlaylistDownloadActivityFirstTime extends Activity implements EnhancedUpdateManagerFixed.UpdateCallback {
     
@@ -45,13 +45,8 @@ public class PlaylistDownloadActivityFirstTime extends Activity implements Enhan
         // Check if this is first time (no database exists)
         isFirstTime = !updateManager.isDatabaseExists();
         
-        if (isFirstTime) {
-            // First time - show download directly
-            startFirstTimeDownload();
-        } else {
-            // Existing user - check for updates
-            checkForUpdates();
-        }
+        // Always show the professional update screen
+        showProfessionalUpdateScreen();
     }
     
     private void initViews() {
@@ -63,13 +58,7 @@ public class PlaylistDownloadActivityFirstTime extends Activity implements Enhan
         continueButton = findViewById(R.id.continue_button);
         
         // Set click listeners
-        retryButton.setOnClickListener(v -> {
-            if (isFirstTime) {
-                startFirstTimeDownload();
-            } else {
-                checkForUpdates();
-            }
-        });
+        retryButton.setOnClickListener(v -> checkForUpdates());
         skipButton.setOnClickListener(v -> startMainActivity());
         continueButton.setOnClickListener(v -> startMainActivity());
         
@@ -79,25 +68,23 @@ public class PlaylistDownloadActivityFirstTime extends Activity implements Enhan
         continueButton.setVisibility(View.GONE);
     }
     
-    private void startFirstTimeDownload() {
-        // Reset UI for first-time download
-        statusText.setText("Downloading playlist database...");
-        progressText.setText("0%");
-        progressBar.setProgress(0);
+    private void showProfessionalUpdateScreen() {
+        // Show professional update screen
+        statusText.setText("CineCraze - Movie & TV Streaming");
+        progressText.setText("Checking for updates...");
         progressBar.setVisibility(View.VISIBLE);
-        retryButton.setVisibility(View.GONE);
-        skipButton.setVisibility(View.GONE);
-        continueButton.setVisibility(View.GONE);
+        progressBar.setIndeterminate(true);
         
-        // Start download directly (no update check)
-        updateManager.checkForUpdates(this);
+        // Start background update check
+        checkForUpdates();
     }
     
     private void checkForUpdates() {
         // Reset UI for update check
-        statusText.setText("Checking for updates...");
-        progressText.setText("");
-        progressBar.setVisibility(View.GONE);
+        statusText.setText("CineCraze - Movie & TV Streaming");
+        progressText.setText("Checking for updates...");
+        progressBar.setIndeterminate(true);
+        progressBar.setVisibility(View.VISIBLE);
         retryButton.setVisibility(View.GONE);
         skipButton.setVisibility(View.GONE);
         continueButton.setVisibility(View.GONE);
@@ -115,44 +102,28 @@ public class PlaylistDownloadActivityFirstTime extends Activity implements Enhan
     @Override
     public void onUpdateCheckStarted() {
         runOnUiThread(() -> {
-            if (isFirstTime) {
-                // First time - show download message
-                statusText.setText("Downloading playlist database...");
-                progressText.setText("0%");
-                progressBar.setProgress(0);
-                progressBar.setVisibility(View.VISIBLE);
-            } else {
-                // Existing user - show update check message
-                statusText.setText("Checking for updates...");
-                progressText.setText("");
-                progressBar.setVisibility(View.GONE);
-            }
+            statusText.setText("CineCraze - Movie & TV Streaming");
+            progressText.setText("Checking for updates...");
+            progressBar.setIndeterminate(true);
+            progressBar.setVisibility(View.VISIBLE);
         });
     }
     
     @Override
     public void onUpdateAvailable(EnhancedUpdateManagerFixed.ManifestInfo manifestInfo) {
         runOnUiThread(() -> {
-            if (isFirstTime) {
-                // First time - show simple download message
-                statusText.setText("Downloading playlist database...");
-                progressText.setText("0%");
-                progressBar.setProgress(0);
-                progressBar.setVisibility(View.VISIBLE);
-            } else {
-                // Existing user - show update details
-                String updateInfo = String.format("Update available!\nVersion: %s\nDescription: %s\nSize: %.2f MB",
-                    manifestInfo.version,
-                    manifestInfo.description,
-                    manifestInfo.database.sizeMb);
-                
-                statusText.setText(updateInfo);
-                progressText.setText("Downloading...");
-                progressBar.setProgress(0);
-                progressBar.setVisibility(View.VISIBLE);
-            }
+            // Show professional update message
+            String updateInfo = String.format("Update Available\nVersion: %s\n%s", 
+                manifestInfo.version,
+                manifestInfo.description);
             
-            // Start downloading
+            statusText.setText(updateInfo);
+            progressText.setText("Downloading...");
+            progressBar.setIndeterminate(false);
+            progressBar.setProgress(0);
+            progressBar.setVisibility(View.VISIBLE);
+            
+            // Start downloading the update
             updateManager.downloadUpdate(manifestInfo, this);
         });
     }
@@ -160,36 +131,26 @@ public class PlaylistDownloadActivityFirstTime extends Activity implements Enhan
     @Override
     public void onNoUpdateAvailable() {
         runOnUiThread(() -> {
-            if (isFirstTime) {
-                // First time - this shouldn't happen, but handle gracefully
-                statusText.setText("Database downloaded successfully!");
-                progressText.setText("100%");
-                progressBar.setProgress(100);
-            } else {
-                // Existing user - show up to date message
-                statusText.setText("Database is up to date!");
-                progressText.setText("");
-                progressBar.setVisibility(View.GONE);
-            }
+            statusText.setText("CineCraze - Movie & TV Streaming");
+            progressText.setText("Ready to stream!");
+            progressBar.setIndeterminate(false);
+            progressBar.setProgress(100);
             
             // Show continue button
             continueButton.setVisibility(View.VISIBLE);
             retryButton.setVisibility(View.GONE);
             skipButton.setVisibility(View.GONE);
             
-            Toast.makeText(this, "Database ready", Toast.LENGTH_SHORT).show();
+            Toast.makeText(this, "Ready to stream!", Toast.LENGTH_SHORT).show();
         });
     }
     
     @Override
     public void onUpdateDownloadStarted() {
         runOnUiThread(() -> {
-            if (isFirstTime) {
-                statusText.setText("Downloading playlist database...");
-            } else {
-                statusText.setText("Downloading update...");
-            }
-            progressText.setText("0%");
+            statusText.setText("CineCraze - Movie & TV Streaming");
+            progressText.setText("Downloading update...");
+            progressBar.setIndeterminate(false);
             progressBar.setProgress(0);
         });
     }
@@ -197,7 +158,7 @@ public class PlaylistDownloadActivityFirstTime extends Activity implements Enhan
     @Override
     public void onUpdateDownloadProgress(int progress) {
         runOnUiThread(() -> {
-            progressText.setText(progress + "%");
+            progressText.setText("Downloading... " + progress + "%");
             progressBar.setProgress(progress);
         });
     }
@@ -206,12 +167,9 @@ public class PlaylistDownloadActivityFirstTime extends Activity implements Enhan
     public void onUpdateDownloadCompleted() {
         downloadCompleted = true;
         runOnUiThread(() -> {
-            if (isFirstTime) {
-                statusText.setText("Database downloaded successfully!");
-            } else {
-                statusText.setText("Update completed successfully!");
-            }
-            progressText.setText("100%");
+            statusText.setText("CineCraze - Movie & TV Streaming");
+            progressText.setText("Update completed!");
+            progressBar.setIndeterminate(false);
             progressBar.setProgress(100);
             
             // Show continue button
@@ -219,47 +177,39 @@ public class PlaylistDownloadActivityFirstTime extends Activity implements Enhan
             retryButton.setVisibility(View.GONE);
             skipButton.setVisibility(View.GONE);
             
-            Toast.makeText(this, "Database ready", Toast.LENGTH_SHORT).show();
+            Toast.makeText(this, "Update completed successfully!", Toast.LENGTH_SHORT).show();
         });
     }
     
     @Override
     public void onUpdateDownloadFailed(String error) {
         runOnUiThread(() -> {
-            if (isFirstTime) {
-                statusText.setText("Download failed: " + error);
-            } else {
-                statusText.setText("Update failed: " + error);
-            }
+            statusText.setText("CineCraze - Movie & TV Streaming");
+            progressText.setText("Update failed");
             progressBar.setVisibility(View.GONE);
-            progressText.setVisibility(View.GONE);
             
             // Show retry and skip buttons
             retryButton.setVisibility(View.VISIBLE);
             skipButton.setVisibility(View.VISIBLE);
             continueButton.setVisibility(View.GONE);
             
-            Toast.makeText(this, "Download failed: " + error, Toast.LENGTH_LONG).show();
+            Toast.makeText(this, "Update failed: " + error, Toast.LENGTH_LONG).show();
         });
     }
     
     @Override
     public void onUpdateCheckFailed(String error) {
         runOnUiThread(() -> {
-            if (isFirstTime) {
-                statusText.setText("Download failed: " + error);
-            } else {
-                statusText.setText("Update check failed: " + error);
-            }
+            statusText.setText("CineCraze - Movie & TV Streaming");
+            progressText.setText("Check failed");
             progressBar.setVisibility(View.GONE);
-            progressText.setVisibility(View.GONE);
             
             // Show retry and skip buttons
             retryButton.setVisibility(View.VISIBLE);
             skipButton.setVisibility(View.VISIBLE);
             continueButton.setVisibility(View.GONE);
             
-            Toast.makeText(this, "Failed: " + error, Toast.LENGTH_LONG).show();
+            Toast.makeText(this, "Check failed: " + error, Toast.LENGTH_LONG).show();
         });
     }
     
@@ -267,7 +217,7 @@ public class PlaylistDownloadActivityFirstTime extends Activity implements Enhan
     public void onBackPressed() {
         // Prevent back button from closing the activity during download
         if (!downloadCompleted) {
-            Toast.makeText(this, "Please wait for download to complete", Toast.LENGTH_SHORT).show();
+            Toast.makeText(this, "Please wait for update to complete", Toast.LENGTH_SHORT).show();
             return;
         }
         super.onBackPressed();

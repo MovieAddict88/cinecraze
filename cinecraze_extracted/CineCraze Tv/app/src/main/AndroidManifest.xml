@@ -43,7 +43,7 @@
             </intent-filter>
         </activity>
         <activity
-            android:name=".FragmentMainActivity"
+            android:name=".ui.PlaylistDownloadActivityFirstTime"
             android:exported="true"
             android:theme="@style/Theme.CineCraze.NoActionBar">
             <intent-filter>
