@@ -43,7 +43,7 @@
             </intent-filter>
         </activity>
         <activity
-            android:name=".ui.PlaylistDownloadActivityEnhanced"
+            android:name=".ui.PlaylistDownloadActivityFlexible"
             android:exported="true"
             android:theme="@style/Theme.CineCraze.NoActionBar">
             <intent-filter>
