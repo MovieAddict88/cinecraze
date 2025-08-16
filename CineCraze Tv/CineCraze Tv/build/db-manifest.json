@@ -1,7 +1,7 @@
 {
-  "version": "test-001",
+  "version": "test-002",
   "dbUrl": "",
-  "sizeBytes": 461759,
-  "sha256": "1e107693024747afe0e1c170abe72f7fc7d2b895fa04af9ae609c7641e246003",
+  "sizeBytes": 461894,
+  "sha256": "e9b9845400020d27faf4c0bdaae5c5a5881bf7a466d295c33a1d7cd8b40f7b23",
   "zipped": true
 }

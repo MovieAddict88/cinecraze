@@ -37,6 +37,20 @@ CREATE TABLE IF NOT EXISTS cache_metadata (
     data_version TEXT
 );
 
+-- Include all Room entities to satisfy schema validation
+CREATE TABLE IF NOT EXISTS download_items (
+    id INTEGER PRIMARY KEY AUTOINCREMENT,
+    downloadManagerId INTEGER,
+    title TEXT,
+    url TEXT,
+    localUri TEXT,
+    totalBytes INTEGER,
+    downloadedBytes INTEGER,
+    status INTEGER,
+    createdAt INTEGER,
+    updatedAt INTEGER
+);
+
 CREATE INDEX IF NOT EXISTS idx_entries_title ON entries(title);
 CREATE INDEX IF NOT EXISTS idx_entries_main_category ON entries(main_category);
 CREATE INDEX IF NOT EXISTS idx_entries_sub_category ON entries(sub_category);
