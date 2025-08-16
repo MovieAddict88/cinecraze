@@ -1,7 +1,6 @@
 package com.cinecraze.free.database;
 
 import com.cinecraze.free.database.entities.EntryEntity;
-import com.cinecraze.free.database.entities.EntryLight;
 import com.cinecraze.free.models.Entry;
 import com.cinecraze.free.models.Server;
 import com.cinecraze.free.models.Season;
@@ -35,12 +34,7 @@ public class DatabaseUtils {
         
         // Convert complex objects to JSON strings
         entity.setServersJson(gson.toJson(entry.getServers()));
-        // Only store seasons for series to reduce footprint
-        if (mainCategory != null && (mainCategory.toLowerCase().contains("series") || mainCategory.toLowerCase().contains("tv"))) {
-            entity.setSeasonsJson(gson.toJson(entry.getSeasons()));
-        } else {
-            entity.setSeasonsJson(null);
-        }
+        entity.setSeasonsJson(gson.toJson(entry.getSeasons()));
         entity.setRelatedJson(gson.toJson(entry.getRelated()));
         
         return entity;
@@ -88,41 +82,12 @@ public class DatabaseUtils {
     }
     
     /**
-     * Convert lightweight projection to Entry (no heavy JSON fields)
-     */
-    public static Entry lightToEntry(EntryLight light) {
-        Entry entry = new Entry();
-        entry.setTitle(light.getTitle());
-        entry.setSubCategory(light.getSubCategory());
-        entry.setMainCategory(light.getMainCategory());
-        entry.setCountry(light.getCountry());
-        entry.setDescription(light.getDescription());
-        entry.setPoster(light.getPoster());
-        entry.setThumbnail(light.getThumbnail());
-        entry.setRating(light.getRating());
-        entry.setDuration(light.getDuration());
-        entry.setYear(light.getYear());
-        return entry;
-    }
-    
-    /**
      * Convert list of EntryEntity to list of Entry
      */
     public static List<Entry> entitiesToEntries(List<EntryEntity> entities) {
         List<Entry> entries = new ArrayList<>();
         for (EntryEntity entity : entities) {
             entries.add(entityToEntry(entity));
-        }
-        return entries;
-    }
-
-    /**
-     * Convert list of EntryLight to list of Entry
-     */
-    public static List<Entry> lightsToEntries(List<EntryLight> lights) {
-        List<Entry> entries = new ArrayList<>();
-        for (EntryLight l : lights) {
-            entries.add(lightToEntry(l));
         }
         return entries;
     }
