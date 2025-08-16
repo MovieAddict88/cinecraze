@@ -1,0 +1,13 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <dimen name="carousel_height">100dp</dimen>
+    <dimen name="carousel_bottom_margin">8dp</dimen>
+    <dimen name="carousel_offset_top">108dp</dimen>
+
+    <dimen name="grid_item_min_width">120dp</dimen>
+    <dimen name="grid_poster_height">140dp</dimen>
+
+    <dimen name="recycler_bottom_padding">60dp</dimen>
+    <dimen name="grid_side_padding">6dp</dimen>
+    <dimen name="grid_top_padding">4dp</dimen>
+</resources>
