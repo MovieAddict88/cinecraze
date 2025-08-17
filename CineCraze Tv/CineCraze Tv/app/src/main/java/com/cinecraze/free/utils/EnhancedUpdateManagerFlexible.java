@@ -15,6 +15,7 @@ import java.security.MessageDigest;
 import java.text.SimpleDateFormat;
 import java.util.Date;
 import java.util.Locale;
+import java.net.URLEncoder;
 
 /**
  * Flexible Enhanced Update Manager
@@ -110,13 +111,17 @@ public class EnhancedUpdateManagerFlexible {
             InputStream inputStream = null;
             
             try {
-                // Download manifest
-                URL url = new URL(MANIFEST_URL);
+                // Download manifest with cache-busting and no-cache headers
+                String cb = String.valueOf(System.currentTimeMillis());
+                URL url = new URL(MANIFEST_URL + (MANIFEST_URL.contains("?") ? "&" : "?") + "_cb=" + cb);
                 connection = (HttpURLConnection) url.openConnection();
                 connection.setRequestMethod("GET");
                 connection.setConnectTimeout(15000);
                 connection.setReadTimeout(15000);
                 connection.setRequestProperty("User-Agent", "CineCraze-Android-App");
+                connection.setRequestProperty("Cache-Control", "no-cache, no-store, must-revalidate");
+                connection.setRequestProperty("Pragma", "no-cache");
+                connection.setRequestProperty("Expires", "0");
                 
                 int responseCode = connection.getResponseCode();
                 if (responseCode != HttpURLConnection.HTTP_OK) {
@@ -208,13 +213,20 @@ public class EnhancedUpdateManagerFlexible {
                 File tempFile = new File(context.getFilesDir(), TEMP_DB_NAME);
                 File localFile = new File(context.getFilesDir(), LOCAL_DB_NAME);
                 
-                // Download database
-                URL url = new URL(DATABASE_URL);
+                // Download database using URL from manifest if present, with cache-busting and no-cache headers
+                String dbUrl = (manifestInfo != null && manifestInfo.database != null && manifestInfo.database.url != null && !manifestInfo.database.url.isEmpty())
+                    ? manifestInfo.database.url
+                    : DATABASE_URL;
+                String cb = String.valueOf(System.currentTimeMillis());
+                URL url = new URL(dbUrl + (dbUrl.contains("?") ? "&" : "?") + "_cb=" + cb);
                 connection = (HttpURLConnection) url.openConnection();
                 connection.setRequestMethod("GET");
                 connection.setConnectTimeout(30000);
                 connection.setReadTimeout(30000);
                 connection.setRequestProperty("User-Agent", "CineCraze-Android-App");
+                connection.setRequestProperty("Cache-Control", "no-cache, no-store, must-revalidate");
+                connection.setRequestProperty("Pragma", "no-cache");
+                connection.setRequestProperty("Expires", "0");
                 
                 int responseCode = connection.getResponseCode();
                 if (responseCode != HttpURLConnection.HTTP_OK) {

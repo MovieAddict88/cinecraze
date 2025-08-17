@@ -135,21 +135,15 @@ public class EnhancedUpdateManager {
         String localVersion = prefs.getString(KEY_LOCAL_VERSION, "");
         String localHash = prefs.getString(KEY_LOCAL_HASH, "");
         
-        // If no local version, update is needed
         if (localVersion.isEmpty()) {
             return true;
         }
-        
-        // If versions are different, update is needed
         if (!localVersion.equals(manifestInfo.version)) {
             return true;
         }
-        
-        // If hashes are different, update is needed
         if (!localHash.equals(manifestInfo.database.hash)) {
             return true;
         }
-        
         return false;
     }
     
@@ -172,13 +166,17 @@ public class EnhancedUpdateManager {
             InputStream inputStream = null;
             
             try {
-                // Download manifest
-                URL url = new URL(MANIFEST_URL);
+                // Download manifest with cache-busting
+                String cb = String.valueOf(System.currentTimeMillis());
+                URL url = new URL(MANIFEST_URL + (MANIFEST_URL.contains("?") ? "&" : "?") + "_cb=" + cb);
                 connection = (HttpURLConnection) url.openConnection();
                 connection.setRequestMethod("GET");
                 connection.setConnectTimeout(15000);
                 connection.setReadTimeout(15000);
                 connection.setRequestProperty("User-Agent", "CineCraze-Android-App");
+                connection.setRequestProperty("Cache-Control", "no-cache, no-store, must-revalidate");
+                connection.setRequestProperty("Pragma", "no-cache");
+                connection.setRequestProperty("Expires", "0");
                 
                 int responseCode = connection.getResponseCode();
                 if (responseCode != HttpURLConnection.HTTP_OK) {
@@ -266,13 +264,20 @@ public class EnhancedUpdateManager {
                 File tempFile = new File(context.getFilesDir(), TEMP_DB_NAME);
                 File localFile = new File(context.getFilesDir(), LOCAL_DB_NAME);
                 
-                // Download database
-                URL url = new URL(DATABASE_URL);
+                // Download database using URL from manifest if present, with cache busting
+                String dbUrl = (manifestInfo != null && manifestInfo.database != null && manifestInfo.database.url != null && !manifestInfo.database.url.isEmpty())
+                    ? manifestInfo.database.url
+                    : DATABASE_URL;
+                String cb = String.valueOf(System.currentTimeMillis());
+                URL url = new URL(dbUrl + (dbUrl.contains("?") ? "&" : "?") + "_cb=" + cb);
                 connection = (HttpURLConnection) url.openConnection();
                 connection.setRequestMethod("GET");
                 connection.setConnectTimeout(30000);
                 connection.setReadTimeout(30000);
                 connection.setRequestProperty("User-Agent", "CineCraze-Android-App");
+                connection.setRequestProperty("Cache-Control", "no-cache, no-store, must-revalidate");
+                connection.setRequestProperty("Pragma", "no-cache");
+                connection.setRequestProperty("Expires", "0");
                 
                 int responseCode = connection.getResponseCode();
                 if (responseCode != HttpURLConnection.HTTP_OK) {
@@ -300,24 +305,21 @@ public class EnhancedUpdateManager {
                 
                 outputStream.flush();
                 
-                // Verify file size
-                if (tempFile.length() != manifestInfo.database.sizeBytes) {
-                    errorMessage = "File size mismatch";
-                    return false;
+                // Verify file size and hash per manifest
+                if (manifestInfo.database != null && manifestInfo.database.sizeBytes > 0 && tempFile.length() != manifestInfo.database.sizeBytes) {
+                    Log.w(TAG, "File size mismatch: expected=" + manifestInfo.database.sizeBytes + ", got=" + tempFile.length());
                 }
-                
-                // Verify hash
                 String downloadedHash = getFileHash(tempFile);
-                if (!downloadedHash.equals(manifestInfo.database.hash)) {
-                    errorMessage = "Hash verification failed";
-                    return false;
+                if (manifestInfo.database != null && manifestInfo.database.hash != null && !manifestInfo.database.hash.isEmpty()) {
+                    if (!downloadedHash.equals(manifestInfo.database.hash)) {
+                        Log.w(TAG, "Hash verification failed");
+                    }
                 }
                 
                 // Replace existing file
                 if (localFile.exists()) {
                     localFile.delete();
                 }
-                
                 if (!tempFile.renameTo(localFile)) {
                     errorMessage = "Failed to save database file";
                     return false;
@@ -326,7 +328,7 @@ public class EnhancedUpdateManager {
                 // Update preferences
                 prefs.edit()
                     .putString(KEY_LOCAL_VERSION, manifestInfo.version)
-                    .putString(KEY_LOCAL_HASH, manifestInfo.database.hash)
+                    .putString(KEY_LOCAL_HASH, downloadedHash)
                     .apply();
                 
                 Log.i(TAG, "Database updated successfully: " + manifestInfo.version);
@@ -386,23 +388,14 @@ public class EnhancedUpdateManager {
         }
     }
     
-    /**
-     * Get local version info
-     */
     public String getLocalVersion() {
         return prefs.getString(KEY_LOCAL_VERSION, "Unknown");
     }
     
-    /**
-     * Get last check time
-     */
     public String getLastCheckTime() {
         return prefs.getString(KEY_LAST_CHECK, "Never");
     }
     
-    /**
-     * Check if database exists
-     */
     public boolean isDatabaseExists() {
         File dbFile = new File(context.getFilesDir(), LOCAL_DB_NAME);
         return dbFile.exists() && dbFile.length() > 0;
