@@ -85,9 +85,9 @@ public class PlaylistDbImporter {
 		String o = original != null ? original.trim().toLowerCase() : "";
 		if (o.contains("live")) return "Live";
 		if (o.equals("movies") || o.equals("movie")) return "Movies";
-		if (o.equals("tv shows") || o.equals("tv show") || o.equals("tv series") || o.equals("series") || o.equals("shows") || o.equals("show")) return "TV Shows";
+		if (o.equals("tv shows") || o.equals("tv show") || o.equals("tv series") || o.equals("series") || o.equals("shows") || o.equals("show")) return "TV Series";
 		// Fallback: decide based on seasons_json
-		if (hasText(seasonsJson) && !"[]".equals(seasonsJson.trim())) return "TV Shows";
+		if (hasText(seasonsJson) && !"[]".equals(seasonsJson.trim())) return "TV Series";
 		return "Movies";
 	}
 }
