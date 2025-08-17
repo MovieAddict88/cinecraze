@@ -263,4 +263,23 @@ public class DataRepository {
         List<EntryEntity> entities = database.entryDao().getTopRatedEntries(count);
         return DatabaseUtils.entitiesToEntries(entities);
     }
+
+    public List<Entry> getRecentlyAdded(int count) {
+        List<EntryEntity> entities = database.entryDao().getRecentlyAdded(count);
+        return DatabaseUtils.entitiesToEntries(entities);
+    }
+
+    public Entry findEntryByHashId(int hashId) {
+        try {
+            List<Entry> all = getAllCachedEntries();
+            for (Entry e : all) {
+                if (e != null && e.getId() == hashId) {
+                    return e;
+                }
+            }
+        } catch (Exception e) {
+            Log.e(TAG, "Error finding entry by hash id: " + e.getMessage(), e);
+        }
+        return null;
+    }
 }
