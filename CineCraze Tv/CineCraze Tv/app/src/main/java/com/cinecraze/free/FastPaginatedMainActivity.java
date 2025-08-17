@@ -323,24 +323,8 @@ public class FastPaginatedMainActivity extends AppCompatActivity implements Pagi
             return;
         }
 
-        ApiService api = RetrofitClient.getClient().create(ApiService.class);
-        api.headPlaylist().enqueue(new Callback<Void>() {
-            @Override
-            public void onResponse(Call<Void> call, Response<Void> response) {
-                long contentLength = 0L;
-                try {
-                    String len = response.headers().get("Content-Length");
-                    if (len != null) contentLength = Long.parseLong(len);
-                } catch (Exception ignored) {}
-                showDownloadPrompt(contentLength > 0 ? contentLength : -1L);
-            }
-
-            @Override
-            public void onFailure(Call<Void> call, Throwable t) {
-                Log.w("FastPaginatedMainActivity", "HEAD preflight failed: " + (t != null ? t.getMessage() : "unknown"));
-                showDownloadPrompt(-1L);
-            }
-        });
+        // With DB-first approach, directly show download prompt without JSON HEAD
+        showDownloadPrompt(-1L);
     }
 
     /**
