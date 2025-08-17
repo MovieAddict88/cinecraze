@@ -77,14 +77,30 @@ public class EnhancedUpdateManagerFlexible {
             return true;
         }
         
-        // Check version and hash
-        boolean versionChanged = !localVersion.equals(manifestInfo.version);
-        boolean hashChanged = !localHash.equals(manifestInfo.database.hash);
+        // Check version
+        boolean versionChanged = (manifestInfo != null && manifestInfo.version != null) && !localVersion.equals(manifestInfo.version);
         
-        Log.i(TAG, String.format("Update check - Local: %s, Remote: %s, VersionChanged: %s, HashChanged: %s",
-            localVersion, manifestInfo.version, versionChanged, hashChanged));
+        // Optional: check size if provided in manifest
+        boolean sizeChanged = false;
+        try {
+            if (manifestInfo != null && manifestInfo.database != null && manifestInfo.database.sizeBytes > 0) {
+                File local = new File(context.getFilesDir(), LOCAL_DB_NAME);
+                if (local.exists()) {
+                    sizeChanged = local.length() != manifestInfo.database.sizeBytes;
+                }
+            }
+        } catch (Exception ignored) { }
         
-        return versionChanged || hashChanged;
+        // Optional: check hash ONLY if manifest provides one
+        boolean hashChanged = false;
+        if (manifestInfo != null && manifestInfo.database != null && manifestInfo.database.hash != null && !manifestInfo.database.hash.isEmpty()) {
+            hashChanged = !localHash.equals(manifestInfo.database.hash);
+        }
+        
+        Log.i(TAG, String.format("Update check - LocalVer: %s, RemoteVer: %s, versionChanged=%s, sizeChanged=%s, hashChanged=%s",
+            localVersion, (manifestInfo != null ? manifestInfo.version : "null"), versionChanged, sizeChanged, hashChanged));
+        
+        return versionChanged || sizeChanged || hashChanged;
     }
     
     /**
@@ -254,29 +270,20 @@ public class EnhancedUpdateManagerFlexible {
                 
                 outputStream.flush();
                 
-                // FLEXIBLE VERIFICATION - Log but don't fail on size mismatch
+                // Optional verification - log only if manifest provides expected values
                 long downloadedSize = tempFile.length();
-                long expectedSize = manifestInfo.database.sizeBytes;
-                
-                Log.i(TAG, String.format("Download verification - Downloaded: %d bytes, Expected: %d bytes", 
-                    downloadedSize, expectedSize));
-                
-                if (downloadedSize != expectedSize) {
-                    Log.w(TAG, "File size mismatch detected, but continuing with download");
-                    Log.w(TAG, "This might be due to compression or network issues");
+                long expectedSize = (manifestInfo != null && manifestInfo.database != null) ? manifestInfo.database.sizeBytes : 0L;
+                if (expectedSize > 0) {
+                    Log.i(TAG, String.format("Download verification - Downloaded: %d bytes, Expected: %d bytes", downloadedSize, expectedSize));
+                    if (downloadedSize != expectedSize) {
+                        Log.w(TAG, "File size mismatch detected (non-fatal)");
+                    }
                 }
-                
-                // Only verify hash if file size is reasonable (within 10% tolerance)
-                double sizeDifference = Math.abs(downloadedSize - expectedSize) / (double) expectedSize;
-                if (sizeDifference > 0.1) {
-                    Log.w(TAG, "File size difference too large (" + (sizeDifference * 100) + "%), skipping hash verification");
-                } else {
-                    // Verify hash
-                    String downloadedHash = getFileHash(tempFile);
-                    if (!downloadedHash.equals(manifestInfo.database.hash)) {
-                        Log.w(TAG, "Hash verification failed, but continuing with download");
-                        Log.w(TAG, "Expected: " + manifestInfo.database.hash);
-                        Log.w(TAG, "Got: " + downloadedHash);
+                String downloadedHash = getFileHash(tempFile);
+                String expectedHash = (manifestInfo != null && manifestInfo.database != null) ? manifestInfo.database.hash : null;
+                if (expectedHash != null && !expectedHash.isEmpty()) {
+                    if (!downloadedHash.equals(expectedHash)) {
+                        Log.w(TAG, "Hash verification failed (non-fatal)");
                     } else {
                         Log.i(TAG, "Hash verification successful");
                     }
