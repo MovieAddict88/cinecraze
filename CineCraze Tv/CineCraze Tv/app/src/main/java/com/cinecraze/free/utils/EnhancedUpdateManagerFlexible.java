@@ -29,8 +29,8 @@ public class EnhancedUpdateManagerFlexible {
     private static final String KEY_LOCAL_HASH = "local_hash";
     private static final String KEY_LAST_CHECK = "last_check";
     
-    private static final String MANIFEST_URL = "https://github.com/MovieAddict88/Movie-Source/raw/main/manifest.json";
-    private static final String DATABASE_URL = "https://github.com/MovieAddict88/Movie-Source/raw/main/playlist.db";
+    private static final String MANIFEST_URL = "https://raw.githubusercontent.com/MovieAddict88/Movie-Source/main/manifest.json";
+    private static final String DATABASE_URL = "https://raw.githubusercontent.com/MovieAddict88/Movie-Source/main/playlist.db";
     private static final String LOCAL_DB_NAME = "playlist.db";
     private static final String TEMP_DB_NAME = "playlist_temp.db";
     

@@ -91,7 +91,7 @@ public class FragmentMainActivity extends AppCompatActivity {
     private static final String PREFS_APP_UPDATE = "app_open_update_prefs";
     private static final String KEY_LAST_HANDLED_MANIFEST_VERSION = "last_handled_manifest_version";
     private static final long MANIFEST_POLL_INTERVAL_MS = 5 * 60 * 1000; // 5 minutes
-    private static final String MANIFEST_URL = "https://github.com/MovieAddict88/Movie-Source/raw/main/manifest.json";
+    private static final String MANIFEST_URL = "https://raw.githubusercontent.com/MovieAddict88/Movie-Source/main/manifest.json";
 
     private final Handler manifestHandler = new Handler(Looper.getMainLooper());
     private final Runnable manifestPoller = new Runnable() {
