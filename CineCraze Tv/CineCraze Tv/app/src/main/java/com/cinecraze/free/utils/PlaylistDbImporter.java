@@ -83,7 +83,7 @@ public class PlaylistDbImporter {
 
 	private static String normalizeCategory(String original, String seasonsJson) {
 		String o = original != null ? original.trim().toLowerCase() : "";
-		if (o.contains("live")) return "Live";
+		if (o.contains("live")) return "Live TV";
 		if (o.equals("movies") || o.equals("movie")) return "Movies";
 		if (o.equals("tv shows") || o.equals("tv show") || o.equals("tv series") || o.equals("series") || o.equals("shows") || o.equals("show")) return "TV Series";
 		// Fallback: decide based on seasons_json
