@@ -46,9 +46,12 @@ public class PlaylistDbImporter {
 					e.setRating(getString(cursor, "rating"));
 					e.setDuration(getString(cursor, "duration"));
 					e.setYear(getString(cursor, "year"));
-					e.setMainCategory(getString(cursor, "main_category"));
+					String originalCategory = getString(cursor, "main_category");
+					String seasonsJson = getString(cursor, "seasons_json");
+					String normalizedCategory = normalizeCategory(originalCategory, seasonsJson);
+					e.setMainCategory(normalizedCategory);
 					e.setServersJson(getString(cursor, "servers_json"));
-					e.setSeasonsJson(getString(cursor, "seasons_json"));
+					e.setSeasonsJson(seasonsJson);
 					e.setRelatedJson(getString(cursor, "related_json"));
 					entities.add(e);
 				} while (cursor.moveToNext());
@@ -74,5 +77,17 @@ public class PlaylistDbImporter {
 	private static String getString(Cursor c, String col) {
 		int idx = c.getColumnIndex(col);
 		return idx >= 0 ? c.getString(idx) : null;
+	}
+
+	private static boolean hasText(String s) { return s != null && s.trim().length() > 0; }
+
+	private static String normalizeCategory(String original, String seasonsJson) {
+		String o = original != null ? original.trim().toLowerCase() : "";
+		if (o.contains("live")) return "Live";
+		if (o.equals("movies") || o.equals("movie")) return "Movies";
+		if (o.equals("tv shows") || o.equals("tv show") || o.equals("tv series") || o.equals("series") || o.equals("shows") || o.equals("show")) return "TV Shows";
+		// Fallback: decide based on seasons_json
+		if (hasText(seasonsJson) && !"[]".equals(seasonsJson.trim())) return "TV Shows";
+		return "Movies";
 	}
 }
