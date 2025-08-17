@@ -18,8 +18,6 @@ import androidx.appcompat.app.AlertDialog;
 import com.cinecraze.free.utils.UiUtils;
 
 import com.cinecraze.free.models.Entry;
-import com.cinecraze.free.net.ApiService;
-import com.cinecraze.free.net.RetrofitClient;
 import com.cinecraze.free.repository.DataRepository;
 import com.cinecraze.free.R;
 import com.gauravk.bubblenavigation.BubbleNavigationConstraintView;

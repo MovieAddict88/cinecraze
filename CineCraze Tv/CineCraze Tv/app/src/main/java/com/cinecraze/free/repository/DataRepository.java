@@ -7,19 +7,11 @@ import com.cinecraze.free.database.CineCrazeDatabase;
 import com.cinecraze.free.database.DatabaseUtils;
 import com.cinecraze.free.database.entities.CacheMetadataEntity;
 import com.cinecraze.free.database.entities.EntryEntity;
-import com.cinecraze.free.models.Category;
 import com.cinecraze.free.models.Entry;
-import com.cinecraze.free.models.Playlist;
-import com.cinecraze.free.net.ApiService;
-import com.cinecraze.free.net.RetrofitClient;
 
 import java.util.ArrayList;
 import java.util.List;
 import java.util.concurrent.TimeUnit;
-
-import retrofit2.Call;
-import retrofit2.Callback;
-import retrofit2.Response;
 
 public class DataRepository {
 
@@ -29,7 +21,6 @@ public class DataRepository {
     public static final int DEFAULT_PAGE_SIZE = 20; // Default items per page
 
     private CineCrazeDatabase database;
-    private ApiService apiService;
 
     public interface DataCallback {
         void onSuccess(List<Entry> entries);
@@ -43,7 +34,6 @@ public class DataRepository {
 
     public DataRepository(Context context) {
         database = CineCrazeDatabase.getInstance(context);
-        apiService = RetrofitClient.getClient().create(ApiService.class);
     }
 
     /**
