@@ -44,6 +44,7 @@ import android.os.Handler;
 import android.os.Looper;
 
 import com.cinecraze.free.utils.EnhancedUpdateManagerFlexible;
+import android.util.Log;
 
 /**
  * SWIPE-ENABLED FRAGMENT-BASED IMPLEMENTATION
@@ -89,7 +90,7 @@ public class FragmentMainActivity extends AppCompatActivity {
 
     private static final String PREFS_APP_UPDATE = "app_open_update_prefs";
     private static final String KEY_LAST_HANDLED_MANIFEST_VERSION = "last_handled_manifest_version";
-    private static final long MANIFEST_POLL_INTERVAL_MS = 5 * 60 * 1000; // 5 minutes
+    private static final long MANIFEST_POLL_INTERVAL_MS = 1 * 60 * 1000; // 1 minute (reduced from 5 minutes)
     private static final String MANIFEST_URL = "https://raw.githubusercontent.com/MovieAddict88/Movie-Source/main/manifest.json";
 
     private final Handler manifestHandler = new Handler(Looper.getMainLooper());
@@ -603,8 +604,15 @@ public class FragmentMainActivity extends AppCompatActivity {
         if (bannerAdView != null) {
             bannerAdView.resume();
         }
+        
+        // Force immediate manifest check when app resumes
+        checkManifestAndMaybeForceUpdate();
+        
+        // Restart manifest polling with shorter interval when app is active
+        manifestHandler.removeCallbacks(manifestPoller);
+        manifestHandler.postDelayed(manifestPoller, 30 * 1000); // Check every 30 seconds when app is active
     }
-
+    
     @Override
     protected void onPause() {
         super.onPause();
@@ -613,6 +621,10 @@ public class FragmentMainActivity extends AppCompatActivity {
         if (bannerAdView != null) {
             bannerAdView.pause();
         }
+        
+        // Switch to longer polling interval when app is in background
+        manifestHandler.removeCallbacks(manifestPoller);
+        manifestHandler.postDelayed(manifestPoller, MANIFEST_POLL_INTERVAL_MS);
     }
 
     public void hideBottomNavigation() {
@@ -652,22 +664,36 @@ public class FragmentMainActivity extends AppCompatActivity {
             // Only check when DB exists
             EnhancedUpdateManagerFlexible updateManager = new EnhancedUpdateManagerFlexible(this);
             if (!updateManager.isDatabaseExists()) {
+                Log.d("FragmentMainActivity", "Database doesn't exist, skipping manifest check");
                 return;
             }
+            
+            Log.d("FragmentMainActivity", "Starting manifest check for updates...");
+            
             new Thread(() -> {
                 HttpURLConnection connection = null;
                 InputStream inputStream = null;
                 try {
-                    URL url = new URL(MANIFEST_URL);
+                    // Add cache-busting parameter to ensure fresh manifest
+                    String cb = String.valueOf(System.currentTimeMillis());
+                    URL url = new URL(MANIFEST_URL + "?_cb=" + cb);
                     connection = (HttpURLConnection) url.openConnection();
                     connection.setRequestMethod("GET");
                     connection.setConnectTimeout(15000);
                     connection.setReadTimeout(15000);
                     connection.setRequestProperty("User-Agent", "CineCraze-Android-App");
+                    connection.setRequestProperty("Cache-Control", "no-cache, no-store, must-revalidate");
+                    connection.setRequestProperty("Pragma", "no-cache");
+                    connection.setRequestProperty("Expires", "0");
+                    
                     int responseCode = connection.getResponseCode();
+                    Log.d("FragmentMainActivity", "Manifest HTTP response code: " + responseCode);
+                    
                     if (responseCode != HttpURLConnection.HTTP_OK) {
+                        Log.w("FragmentMainActivity", "Failed to fetch manifest, HTTP code: " + responseCode);
                         return;
                     }
+                    
                     inputStream = connection.getInputStream();
                     byte[] buffer = new byte[8192];
                     StringBuilder result = new StringBuilder();
@@ -675,24 +701,45 @@ public class FragmentMainActivity extends AppCompatActivity {
                     while ((bytesRead = inputStream.read(buffer)) != -1) {
                         result.append(new String(buffer, 0, bytesRead));
                     }
+                    
+                    String manifestJson = result.toString();
+                    Log.d("FragmentMainActivity", "Manifest content: " + manifestJson.substring(0, Math.min(200, manifestJson.length())) + "...");
+                    
                     Gson gson = new Gson();
                     com.cinecraze.free.utils.EnhancedUpdateManagerFlexible.ManifestInfo manifest =
-                        gson.fromJson(result.toString(), com.cinecraze.free.utils.EnhancedUpdateManagerFlexible.ManifestInfo.class);
+                        gson.fromJson(manifestJson, com.cinecraze.free.utils.EnhancedUpdateManagerFlexible.ManifestInfo.class);
+                    
                     if (manifest == null || manifest.version == null || manifest.version.isEmpty()) {
+                        Log.w("FragmentMainActivity", "Invalid manifest data received");
                         return;
                     }
+                    
+                    Log.d("FragmentMainActivity", "Remote manifest version: " + manifest.version);
+                    
                     SharedPreferences sp = getSharedPreferences(PREFS_APP_UPDATE, MODE_PRIVATE);
-                    String lastHandled = sp.getString(KEY_LAST_HANDLED_MANIFEST_VERSION, "1");
-                    if (!manifest.version.equals(lastHandled)) {
+                    String lastHandled = sp.getString(KEY_LAST_HANDLED_MANIFEST_VERSION, "");
+                    
+                    Log.d("FragmentMainActivity", "Last handled version: " + lastHandled);
+                    
+                    // Check if version changed or if we haven't handled any version yet
+                    if (lastHandled.isEmpty() || !manifest.version.equals(lastHandled)) {
+                        Log.i("FragmentMainActivity", "New manifest version detected: " + manifest.version + " (was: " + lastHandled + ")");
+                        
                         // Mark new version as handled to enforce one-time prompt per version
                         sp.edit().putString(KEY_LAST_HANDLED_MANIFEST_VERSION, manifest.version).apply();
+                        
                         runOnUiThread(() -> {
+                            Log.i("FragmentMainActivity", "Launching update activity for version: " + manifest.version);
                             Intent intent = new Intent(FragmentMainActivity.this, com.cinecraze.free.ui.PlaylistDownloadActivityFlexible.class);
                             intent.addFlags(Intent.FLAG_ACTIVITY_NEW_TASK);
                             startActivity(intent);
                         });
+                    } else {
+                        Log.d("FragmentMainActivity", "No new version detected, current: " + manifest.version);
                     }
-                } catch (Exception ignored) {
+                    
+                } catch (Exception e) {
+                    Log.e("FragmentMainActivity", "Error checking manifest", e);
                 } finally {
                     try {
                         if (inputStream != null) inputStream.close();
@@ -700,6 +747,25 @@ public class FragmentMainActivity extends AppCompatActivity {
                     } catch (IOException ignored2) {}
                 }
             }).start();
-        } catch (Exception ignored) { }
+        } catch (Exception e) {
+            Log.e("FragmentMainActivity", "Error in checkManifestAndMaybeForceUpdate", e);
+        }
+    }
+
+    /**
+     * Force immediate update check - can be called from UI or for debugging
+     */
+    public void forceUpdateCheck() {
+        Log.i("FragmentMainActivity", "Force update check triggered");
+        checkManifestAndMaybeForceUpdate();
+    }
+    
+    /**
+     * Reset the last handled version to force update prompt
+     */
+    public void resetUpdateVersion() {
+        SharedPreferences sp = getSharedPreferences(PREFS_APP_UPDATE, MODE_PRIVATE);
+        sp.edit().remove(KEY_LAST_HANDLED_MANIFEST_VERSION).apply();
+        Log.i("FragmentMainActivity", "Reset update version - next check will trigger update prompt");
     }
 }

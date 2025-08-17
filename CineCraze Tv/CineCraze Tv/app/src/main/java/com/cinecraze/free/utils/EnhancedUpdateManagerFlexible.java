@@ -71,14 +71,21 @@ public class EnhancedUpdateManagerFlexible {
         String localVersion = prefs.getString(KEY_LOCAL_VERSION, "");
         String localHash = prefs.getString(KEY_LOCAL_HASH, "");
         
+        Log.d(TAG, "Checking if update needed - Local version: '" + localVersion + "', Remote version: '" + 
+            (manifestInfo != null ? manifestInfo.version : "null") + "'");
+        
         // If no local version, update is needed
         if (localVersion.isEmpty()) {
             Log.i(TAG, "No local version found, update needed");
             return true;
         }
         
-        // Check version
-        boolean versionChanged = (manifestInfo != null && manifestInfo.version != null) && !localVersion.equals(manifestInfo.version);
+        // Check version - be more flexible with version comparison
+        boolean versionChanged = false;
+        if (manifestInfo != null && manifestInfo.version != null && !manifestInfo.version.isEmpty()) {
+            versionChanged = !localVersion.equals(manifestInfo.version);
+            Log.d(TAG, "Version comparison: local='" + localVersion + "' vs remote='" + manifestInfo.version + "' = " + versionChanged);
+        }
         
         // Optional: check size if provided in manifest
         boolean sizeChanged = false;
@@ -86,21 +93,29 @@ public class EnhancedUpdateManagerFlexible {
             if (manifestInfo != null && manifestInfo.database != null && manifestInfo.database.sizeBytes > 0) {
                 File local = new File(context.getFilesDir(), LOCAL_DB_NAME);
                 if (local.exists()) {
-                    sizeChanged = local.length() != manifestInfo.database.sizeBytes;
+                    long localSize = local.length();
+                    long remoteSize = manifestInfo.database.sizeBytes;
+                    sizeChanged = localSize != remoteSize;
+                    Log.d(TAG, "Size comparison: local=" + localSize + " bytes vs remote=" + remoteSize + " bytes = " + sizeChanged);
                 }
             }
-        } catch (Exception ignored) { }
+        } catch (Exception e) {
+            Log.w(TAG, "Error checking size", e);
+        }
         
         // Optional: check hash ONLY if manifest provides one
         boolean hashChanged = false;
         if (manifestInfo != null && manifestInfo.database != null && manifestInfo.database.hash != null && !manifestInfo.database.hash.isEmpty()) {
             hashChanged = !localHash.equals(manifestInfo.database.hash);
+            Log.d(TAG, "Hash comparison: local='" + localHash + "' vs remote='" + manifestInfo.database.hash + "' = " + hashChanged);
         }
         
-        Log.i(TAG, String.format("Update check - LocalVer: %s, RemoteVer: %s, versionChanged=%s, sizeChanged=%s, hashChanged=%s",
-            localVersion, (manifestInfo != null ? manifestInfo.version : "null"), versionChanged, sizeChanged, hashChanged));
+        boolean updateNeeded = versionChanged || sizeChanged || hashChanged;
         
-        return versionChanged || sizeChanged || hashChanged;
+        Log.i(TAG, String.format("Update check result - versionChanged=%s, sizeChanged=%s, hashChanged=%s, updateNeeded=%s",
+            versionChanged, sizeChanged, hashChanged, updateNeeded));
+        
+        return updateNeeded;
     }
     
     /**
