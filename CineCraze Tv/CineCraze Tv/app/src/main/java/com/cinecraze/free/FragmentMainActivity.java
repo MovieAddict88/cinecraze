@@ -118,6 +118,10 @@ public class FragmentMainActivity extends AppCompatActivity {
 
         initializeViews();
 
+        // FORCE IMMEDIATE UPDATE CHECK FOR TESTING
+        Log.i("FragmentMainActivity", "=== FORCING IMMEDIATE UPDATE CHECK ON APP START ===");
+        testUpdateDetection();
+
         // Preflight: if playlist.db exists, start app; otherwise prompt to download DB first
         if (playlistUpdateManager.isDatabaseExists()) {
             startFragments();
@@ -126,6 +130,21 @@ public class FragmentMainActivity extends AppCompatActivity {
         } else {
             preflightAndPrompt();
         }
+    }
+    
+    /**
+     * Test method to force update detection - call this from UI or for debugging
+     */
+    public void testUpdateDetection() {
+        Log.i("FragmentMainActivity", "=== TESTING UPDATE DETECTION ===");
+        
+        // Clear all preferences first
+        forceFreshUpdateCheck();
+        
+        // Also add a toast to show the test is running
+        runOnUiThread(() -> {
+            android.widget.Toast.makeText(this, "Testing update detection...", android.widget.Toast.LENGTH_SHORT).show();
+        });
     }
 
     private void startFragments() {
@@ -661,13 +680,14 @@ public class FragmentMainActivity extends AppCompatActivity {
 
     private void checkManifestAndMaybeForceUpdate() {
         try {
-            // Only check when DB exists
-            EnhancedUpdateManagerFlexible updateManager = new EnhancedUpdateManagerFlexible(this);
-            if (!updateManager.isDatabaseExists()) {
-                Log.d("FragmentMainActivity", "Database doesn't exist, skipping manifest check");
-                return;
-            }
+            Log.d("FragmentMainActivity", "=== STARTING MANIFEST CHECK ===");
             
+            // Check if database exists but don't skip the check
+            EnhancedUpdateManagerFlexible updateManager = new EnhancedUpdateManagerFlexible(this);
+            boolean dbExists = updateManager.isDatabaseExists();
+            Log.d("FragmentMainActivity", "Database exists: " + dbExists);
+            
+            // Always check for updates, even if database doesn't exist
             Log.d("FragmentMainActivity", "Starting manifest check for updates...");
             
             new Thread(() -> {
@@ -677,6 +697,8 @@ public class FragmentMainActivity extends AppCompatActivity {
                     // Add cache-busting parameter to ensure fresh manifest
                     String cb = String.valueOf(System.currentTimeMillis());
                     URL url = new URL(MANIFEST_URL + "?_cb=" + cb);
+                    Log.d("FragmentMainActivity", "Fetching manifest from: " + url.toString());
+                    
                     connection = (HttpURLConnection) url.openConnection();
                     connection.setRequestMethod("GET");
                     connection.setConnectTimeout(15000);
@@ -703,7 +725,7 @@ public class FragmentMainActivity extends AppCompatActivity {
                     }
                     
                     String manifestJson = result.toString();
-                    Log.d("FragmentMainActivity", "Manifest content: " + manifestJson.substring(0, Math.min(200, manifestJson.length())) + "...");
+                    Log.d("FragmentMainActivity", "Full manifest content: " + manifestJson);
                     
                     Gson gson = new Gson();
                     com.cinecraze.free.utils.EnhancedUpdateManagerFlexible.ManifestInfo manifest =
@@ -720,16 +742,20 @@ public class FragmentMainActivity extends AppCompatActivity {
                     String lastHandled = sp.getString(KEY_LAST_HANDLED_MANIFEST_VERSION, "");
                     
                     Log.d("FragmentMainActivity", "Last handled version: " + lastHandled);
+                    Log.d("FragmentMainActivity", "Version comparison: '" + lastHandled + "' vs '" + manifest.version + "'");
+                    
+                    // FORCE UPDATE DETECTION FOR TESTING - Remove this after testing
+                    boolean forceUpdate = true; // Set to true to force update detection
                     
                     // Check if version changed or if we haven't handled any version yet
-                    if (lastHandled.isEmpty() || !manifest.version.equals(lastHandled)) {
-                        Log.i("FragmentMainActivity", "New manifest version detected: " + manifest.version + " (was: " + lastHandled + ")");
+                    if (forceUpdate || lastHandled.isEmpty() || !manifest.version.equals(lastHandled)) {
+                        Log.i("FragmentMainActivity", "*** UPDATE DETECTED *** New manifest version: " + manifest.version + " (was: " + lastHandled + ")");
                         
                         // Mark new version as handled to enforce one-time prompt per version
                         sp.edit().putString(KEY_LAST_HANDLED_MANIFEST_VERSION, manifest.version).apply();
                         
                         runOnUiThread(() -> {
-                            Log.i("FragmentMainActivity", "Launching update activity for version: " + manifest.version);
+                            Log.i("FragmentMainActivity", "*** LAUNCHING UPDATE ACTIVITY *** for version: " + manifest.version);
                             Intent intent = new Intent(FragmentMainActivity.this, com.cinecraze.free.ui.PlaylistDownloadActivityFlexible.class);
                             intent.addFlags(Intent.FLAG_ACTIVITY_NEW_TASK);
                             startActivity(intent);
@@ -740,6 +766,7 @@ public class FragmentMainActivity extends AppCompatActivity {
                     
                 } catch (Exception e) {
                     Log.e("FragmentMainActivity", "Error checking manifest", e);
+                    e.printStackTrace();
                 } finally {
                     try {
                         if (inputStream != null) inputStream.close();
@@ -749,6 +776,7 @@ public class FragmentMainActivity extends AppCompatActivity {
             }).start();
         } catch (Exception e) {
             Log.e("FragmentMainActivity", "Error in checkManifestAndMaybeForceUpdate", e);
+            e.printStackTrace();
         }
     }
 
@@ -767,5 +795,22 @@ public class FragmentMainActivity extends AppCompatActivity {
         SharedPreferences sp = getSharedPreferences(PREFS_APP_UPDATE, MODE_PRIVATE);
         sp.edit().remove(KEY_LAST_HANDLED_MANIFEST_VERSION).apply();
         Log.i("FragmentMainActivity", "Reset update version - next check will trigger update prompt");
+    }
+    
+    /**
+     * Clear all update preferences and force immediate update check
+     */
+    public void forceFreshUpdateCheck() {
+        SharedPreferences sp = getSharedPreferences(PREFS_APP_UPDATE, MODE_PRIVATE);
+        sp.edit().clear().apply();
+        Log.i("FragmentMainActivity", "Cleared all update preferences");
+        
+        // Also clear EnhancedUpdateManagerFlexible preferences
+        SharedPreferences updatePrefs = getSharedPreferences("playlist_update_prefs", MODE_PRIVATE);
+        updatePrefs.edit().clear().apply();
+        Log.i("FragmentMainActivity", "Cleared EnhancedUpdateManagerFlexible preferences");
+        
+        // Force immediate check
+        checkManifestAndMaybeForceUpdate();
     }
 }
