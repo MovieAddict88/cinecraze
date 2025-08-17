@@ -14,6 +14,7 @@ import com.cinecraze.free.FragmentMainActivity;
 import com.cinecraze.free.utils.EnhancedUpdateManagerFlexible;
 
 import java.io.File;
+import android.util.Log;
 
 /**
  * Flexible Activity for downloading the playlist database
@@ -41,13 +42,24 @@ public class PlaylistDownloadActivityFlexible extends Activity implements Enhanc
         initViews();
         updateManager = new EnhancedUpdateManagerFlexible(this);
         
-        // Check if database already exists
-        if (updateManager.isDatabaseExists()) {
-            // Check for updates using manifest
+        // Check if this is a forced update
+        boolean forceUpdate = getIntent().getBooleanExtra("force_update", false);
+        String manifestVersion = getIntent().getStringExtra("manifest_version");
+        
+        if (forceUpdate && manifestVersion != null) {
+            Log.i(TAG, "Forced update detected for version: " + manifestVersion);
+            statusText.setText("Update available for version " + manifestVersion + "\nStarting download...");
+            // Force immediate update check
             checkForUpdates();
         } else {
-            // No database exists, start download
-            startDownload();
+            // Normal flow
+            if (updateManager.isDatabaseExists()) {
+                // Check for updates using manifest
+                checkForUpdates();
+            } else {
+                // No database exists, start download
+                startDownload();
+            }
         }
     }
     

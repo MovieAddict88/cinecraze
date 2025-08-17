@@ -118,10 +118,6 @@ public class FragmentMainActivity extends AppCompatActivity {
 
         initializeViews();
 
-        // FORCE IMMEDIATE UPDATE CHECK FOR TESTING
-        Log.i("FragmentMainActivity", "=== FORCING IMMEDIATE UPDATE CHECK ON APP START ===");
-        testUpdateDetection();
-
         // Preflight: if playlist.db exists, start app; otherwise prompt to download DB first
         if (playlistUpdateManager.isDatabaseExists()) {
             startFragments();
@@ -141,10 +137,16 @@ public class FragmentMainActivity extends AppCompatActivity {
         // Clear all preferences first
         forceFreshUpdateCheck();
         
-        // Also add a toast to show the test is running
-        runOnUiThread(() -> {
-            android.widget.Toast.makeText(this, "Testing update detection...", android.widget.Toast.LENGTH_SHORT).show();
-        });
+        // The update detection should automatically launch the update activity
+        // No toast needed - the update activity will handle the UI
+    }
+    
+    /**
+     * Simple method to test update detection - can be called from any UI element
+     */
+    public void triggerUpdateCheck() {
+        Log.i("FragmentMainActivity", "Manual update check triggered");
+        checkManifestAndMaybeForceUpdate();
     }
 
     private void startFragments() {
@@ -745,7 +747,7 @@ public class FragmentMainActivity extends AppCompatActivity {
                     Log.d("FragmentMainActivity", "Version comparison: '" + lastHandled + "' vs '" + manifest.version + "'");
                     
                     // FORCE UPDATE DETECTION FOR TESTING - Remove this after testing
-                    boolean forceUpdate = true; // Set to true to force update detection
+                    boolean forceUpdate = false; // Set to false for normal operation
                     
                     // Check if version changed or if we haven't handled any version yet
                     if (forceUpdate || lastHandled.isEmpty() || !manifest.version.equals(lastHandled)) {
@@ -756,9 +758,20 @@ public class FragmentMainActivity extends AppCompatActivity {
                         
                         runOnUiThread(() -> {
                             Log.i("FragmentMainActivity", "*** LAUNCHING UPDATE ACTIVITY *** for version: " + manifest.version);
-                            Intent intent = new Intent(FragmentMainActivity.this, com.cinecraze.free.ui.PlaylistDownloadActivityFlexible.class);
-                            intent.addFlags(Intent.FLAG_ACTIVITY_NEW_TASK);
-                            startActivity(intent);
+                            try {
+                                Intent intent = new Intent(FragmentMainActivity.this, com.cinecraze.free.ui.PlaylistDownloadActivityFlexible.class);
+                                intent.addFlags(Intent.FLAG_ACTIVITY_NEW_TASK | Intent.FLAG_ACTIVITY_CLEAR_TOP);
+                                intent.putExtra("force_update", true);
+                                intent.putExtra("manifest_version", manifest.version);
+                                startActivity(intent);
+                                Log.i("FragmentMainActivity", "Update activity launched successfully");
+                            } catch (Exception e) {
+                                Log.e("FragmentMainActivity", "Failed to launch update activity", e);
+                                // Fallback: show a dialog or toast
+                                android.widget.Toast.makeText(FragmentMainActivity.this, 
+                                    "Update available! Version " + manifest.version, 
+                                    android.widget.Toast.LENGTH_LONG).show();
+                            }
                         });
                     } else {
                         Log.d("FragmentMainActivity", "No new version detected, current: " + manifest.version);
