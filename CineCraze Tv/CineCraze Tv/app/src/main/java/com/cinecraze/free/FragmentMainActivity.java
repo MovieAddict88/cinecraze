@@ -27,6 +27,7 @@ import com.google.gson.Gson;
 import com.gauravk.bubblenavigation.BubbleNavigationConstraintView;
 import com.google.android.material.floatingactionbutton.FloatingActionButton;
 import com.google.android.gms.ads.AdView;
+import com.cinecraze.free.utils.PlaylistDbImporter;
 
 import java.io.IOException;
 import java.io.InputStream;
@@ -251,6 +252,13 @@ public class FragmentMainActivity extends AppCompatActivity {
                 runOnUiThread(() -> {
                     if (downloadingDialog != null && downloadingDialog.isShowing()) {
                         downloadingDialog.dismiss();
+                    }
+                    try {
+                        // Import downloaded playlist.db into Room cache before proceeding
+                        PlaylistDbImporter.importIntoRoom(FragmentMainActivity.this);
+                    } catch (Exception e) {
+                        android.util.Log.e("FragmentMainActivity", "Import failed: " + e.getMessage(), e);
+                        android.widget.Toast.makeText(FragmentMainActivity.this, "Import failed: " + e.getMessage(), android.widget.Toast.LENGTH_LONG).show();
                     }
                     // Mark this manifest version as handled so app-open update won't immediately trigger
                     try {
