@@ -93,7 +93,7 @@ public class PlaylistDbImporter {
 							if (agg.description == null || agg.description.isEmpty()) agg.description = description;
 						}
 
-						// Merge seasons from this row
+						// Merge season/episodes from this row
 						List<Season> seasons = parseSeasons(seasonsJson);
 						if (seasons != null && !seasons.isEmpty()) {
 							for (Season s : seasons) {
@@ -102,6 +102,15 @@ public class PlaylistDbImporter {
 								List<Episode> eps = s.getEpisodes();
 								if (eps == null || eps.isEmpty()) continue;
 								agg.mergeSeason(seasonNum, eps);
+							}
+						} else {
+							// Fallback: seasons_json may represent a single episode or an array of episodes
+							for (EpisodeWithSeason ews : parseEpisodesFlexible(seasonsJson, title, serversJson)) {
+								if (ews == null || ews.episode == null) continue;
+								int seasonNum = ews.season > 0 ? ews.season : 1;
+								List<Episode> single = new ArrayList<>();
+								single.add(ews.episode);
+								agg.mergeSeason(seasonNum, single);
 							}
 						}
 					} else {
@@ -213,6 +222,125 @@ public class PlaylistDbImporter {
 		}
 	}
 
+	// Fallback parsing: support episode-shaped JSON or arrays of episodes
+	private static List<EpisodeWithSeason> parseEpisodesFlexible(String seasonsJson, String title, String serversJson) {
+		List<EpisodeWithSeason> result = new ArrayList<>();
+		if (!hasText(seasonsJson)) {
+			// Try to create an episode from title + servers if it clearly looks like SxxExx
+			EpisodeWithSeason fromTitle = episodeFromTitleAndServers(title, serversJson);
+			if (fromTitle != null) result.add(fromTitle);
+			return result;
+		}
+		try {
+			com.google.gson.JsonElement root = com.google.gson.JsonParser.parseString(seasonsJson);
+			if (root.isJsonObject()) {
+				EpisodeWithSeason ews = episodeFromJsonObject(root.getAsJsonObject());
+				if (ews != null) result.add(ews);
+			} else if (root.isJsonArray()) {
+				com.google.gson.JsonArray arr = root.getAsJsonArray();
+				for (com.google.gson.JsonElement el : arr) {
+					if (el.isJsonObject()) {
+						com.google.gson.JsonObject obj = el.getAsJsonObject();
+						// If looks like a Season object with Episodes array, expand episodes
+						if (obj.has("Episodes") || obj.has("episodes")) {
+							try {
+								// Convert to Season then expand
+								Season season = gson.fromJson(obj, Season.class);
+								int sNum = season != null ? season.getSeason() : 1;
+								List<Episode> eps = season != null ? season.getEpisodes() : null;
+								if (eps != null) {
+									for (Episode ep : eps) {
+										EpisodeWithSeason ews = new EpisodeWithSeason();
+										ews.season = sNum > 0 ? sNum : 1;
+										ews.episode = ep;
+										result.add(ews);
+									}
+								}
+							} catch (Exception ignored) {}
+						} else {
+							EpisodeWithSeason ews = episodeFromJsonObject(obj);
+							if (ews != null) result.add(ews);
+						}
+					}
+				}
+			}
+		} catch (Exception ignored) { }
+		// As a last resort, derive from title
+		if (result.isEmpty()) {
+			EpisodeWithSeason fromTitle = episodeFromTitleAndServers(title, serversJson);
+			if (fromTitle != null) result.add(fromTitle);
+		}
+		return result;
+	}
+
+	private static EpisodeWithSeason episodeFromJsonObject(com.google.gson.JsonObject obj) {
+		try {
+			Episode ep = new Episode();
+			int seasonNum = 1;
+			if (obj.has("season")) seasonNum = safeInt(obj.get("season"));
+			else if (obj.has("Season")) seasonNum = safeInt(obj.get("Season"));
+			if (obj.has("episode")) ep.setEpisode(safeIntOrString(obj.get("episode")));
+			else if (obj.has("Episode")) ep.setEpisode(safeIntOrString(obj.get("Episode")));
+			if (obj.has("title")) ep.setTitle(safeString(obj.get("title")));
+			else if (obj.has("Title")) ep.setTitle(safeString(obj.get("Title")));
+			if (obj.has("duration")) ep.setDuration(safeString(obj.get("duration")));
+			else if (obj.has("Duration")) ep.setDuration(safeString(obj.get("Duration")));
+			if (obj.has("description")) ep.setDescription(safeString(obj.get("description")));
+			else if (obj.has("Description")) ep.setDescription(safeString(obj.get("Description")));
+			if (obj.has("thumbnail")) ep.setThumbnail(safeString(obj.get("thumbnail")));
+			else if (obj.has("Thumbnail")) ep.setThumbnail(safeString(obj.get("Thumbnail")));
+			if (obj.has("servers") || obj.has("Servers")) {
+				com.google.gson.JsonElement serversEl = obj.has("servers") ? obj.get("servers") : obj.get("Servers");
+				try {
+					java.lang.reflect.Type listType = new com.google.gson.reflect.TypeToken<List<com.cinecraze.free.models.Server>>(){}.getType();
+					List<com.cinecraze.free.models.Server> servers = gson.fromJson(serversEl, listType);
+					ep.setServers(servers);
+				} catch (Exception ignored) {}
+			}
+			EpisodeWithSeason ews = new EpisodeWithSeason();
+			ews.season = seasonNum > 0 ? seasonNum : 1;
+			ews.episode = ep;
+			return ews;
+		} catch (Exception e) {
+			return null;
+		}
+	}
+
+	private static EpisodeWithSeason episodeFromTitleAndServers(String title, String serversJson) {
+		if (title == null) return null;
+		java.util.regex.Matcher m = java.util.regex.Pattern.compile("(?i).*S(\\d{1,2})E(\\d{1,2}).*").matcher(title);
+		if (!m.matches()) return null;
+		int season = 1;
+		int epNum = 0;
+		try { season = Integer.parseInt(m.group(1)); } catch (Exception ignored) {}
+		try { epNum = Integer.parseInt(m.group(2)); } catch (Exception ignored) {}
+		Episode ep = new Episode();
+		ep.setEpisode(epNum);
+		ep.setTitle(title);
+		// Try to attach servers from row-level servers_json if available
+		if (hasText(serversJson) && !"[]".equals(serversJson.trim())) {
+			try {
+				java.lang.reflect.Type listType = new com.google.gson.reflect.TypeToken<List<com.cinecraze.free.models.Server>>(){}.getType();
+				List<com.cinecraze.free.models.Server> servers = gson.fromJson(serversJson, listType);
+				ep.setServers(servers);
+			} catch (Exception ignored) {}
+		}
+		EpisodeWithSeason ews = new EpisodeWithSeason();
+		ews.season = season;
+		ews.episode = ep;
+		return ews;
+	}
+
+	private static int safeInt(com.google.gson.JsonElement el) {
+		try { return el.getAsInt(); } catch (Exception ignored) { try { return Integer.parseInt(el.getAsString()); } catch (Exception e) { return 0; } }
+	}
+	private static Object safeIntOrString(com.google.gson.JsonElement el) {
+		try { return el.getAsInt(); } catch (Exception ignored) { try { return el.getAsString(); } catch (Exception e) { return 0; } }
+	}
+	private static String safeString(com.google.gson.JsonElement el) {
+		try { return el.isJsonNull() ? null : el.getAsString(); } catch (Exception e) { return null; }
+	}
+
 	private static class SeriesAggregator {
 		String title;
 		String subCategory;
@@ -253,5 +381,10 @@ public class PlaylistDbImporter {
 			}
 			return gson.toJson(seasons);
 		}
+	}
+
+	private static class EpisodeWithSeason {
+		int season;
+		Episode episode;
 	}
 }

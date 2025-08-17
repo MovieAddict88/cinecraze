@@ -27,7 +27,7 @@ public interface EntryDao {
     @Query("SELECT * FROM entries WHERE title LIKE '%' || :title || '%'")
     List<EntryEntity> searchByTitle(String title);
     
-    @Query("SELECT COUNT(*) FROM entries")
+    @Query("SELECT COUNT(*) FROM entries WHERE (main_category != 'TV Series' OR (seasons_json IS NOT NULL AND seasons_json != '' AND seasons_json != '[]'))")
     int getEntriesCount();
     
     @Query("DELETE FROM entries")
@@ -46,34 +46,36 @@ public interface EntryDao {
     @Query("SELECT * FROM entries WHERE title LIKE '%' || :title || '%' ORDER BY title ASC LIMIT :limit OFFSET :offset")
     List<EntryEntity> searchByTitlePaged(String title, int limit, int offset);
     
-    @Query("SELECT COUNT(*) FROM entries WHERE main_category = :category")
+    @Query("SELECT COUNT(*) FROM entries WHERE main_category = :category AND (main_category != 'TV Series' OR (seasons_json IS NOT NULL AND seasons_json != '' AND seasons_json != '[]'))")
     int getEntriesCountByCategory(String category);
     
-    @Query("SELECT COUNT(*) FROM entries WHERE title LIKE '%' || :title || '%'")
+    @Query("SELECT COUNT(*) FROM entries WHERE title LIKE '%' || :title || '%' AND (main_category != 'TV Series' OR (seasons_json IS NOT NULL AND seasons_json != '' AND seasons_json != '[]'))")
     int getSearchResultsCount(String title);
     
     // Filter queries for unique values
-    @Query("SELECT DISTINCT sub_category FROM entries WHERE sub_category IS NOT NULL AND sub_category != '' ORDER BY sub_category ASC")
+    @Query("SELECT DISTINCT sub_category FROM entries WHERE sub_category IS NOT NULL AND sub_category != '' AND (main_category != 'TV Series' OR (seasons_json IS NOT NULL AND seasons_json != '' AND seasons_json != '[]')) ORDER BY sub_category ASC")
     List<String> getUniqueGenres();
     
-    @Query("SELECT DISTINCT country FROM entries WHERE country IS NOT NULL AND country != '' ORDER BY country ASC")
+    @Query("SELECT DISTINCT country FROM entries WHERE country IS NOT NULL AND country != '' AND (main_category != 'TV Series' OR (seasons_json IS NOT NULL AND seasons_json != '' AND seasons_json != '[]')) ORDER BY country ASC")
     List<String> getUniqueCountries();
     
-    @Query("SELECT DISTINCT year FROM entries WHERE year IS NOT NULL AND year != '' AND year != '0' ORDER BY year DESC")
+    @Query("SELECT DISTINCT year FROM entries WHERE year IS NOT NULL AND year != '' AND year != '0' AND (main_category != 'TV Series' OR (seasons_json IS NOT NULL AND seasons_json != '' AND seasons_json != '[]')) ORDER BY year DESC")
     List<String> getUniqueYears();
     
     // Filtered pagination queries
     @Query("SELECT * FROM entries WHERE " +
            "(:genre IS NULL OR sub_category = :genre) AND " +
            "(:country IS NULL OR country = :country) AND " +
-           "(:year IS NULL OR year = :year) " +
+           "(:year IS NULL OR year = :year) AND " +
+           "(main_category != 'TV Series' OR (seasons_json IS NOT NULL AND seasons_json != '' AND seasons_json != '[]')) " +
            "ORDER BY title ASC LIMIT :limit OFFSET :offset")
     List<EntryEntity> getEntriesFilteredPaged(String genre, String country, String year, int limit, int offset);
     
     @Query("SELECT COUNT(*) FROM entries WHERE " +
            "(:genre IS NULL OR sub_category = :genre) AND " +
            "(:country IS NULL OR country = :country) AND " +
-           "(:year IS NULL OR year = :year)")
+           "(:year IS NULL OR year = :year) AND " +
+           "(main_category != 'TV Series' OR (seasons_json IS NOT NULL AND seasons_json != '' AND seasons_json != '[]'))")
     int getEntriesFilteredCount(String genre, String country, String year);
 
     @Query("SELECT * FROM entries ORDER BY CAST(rating AS REAL) DESC LIMIT :count")
