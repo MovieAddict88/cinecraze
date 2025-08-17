@@ -37,10 +37,10 @@ public interface EntryDao {
     void deleteByCategory(String category);
     
     // Pagination queries
-    @Query("SELECT * FROM entries ORDER BY title ASC LIMIT :limit OFFSET :offset")
+    @Query("SELECT * FROM entries WHERE (main_category != 'TV Series' OR (seasons_json IS NOT NULL AND seasons_json != '' AND seasons_json != '[]')) ORDER BY title ASC LIMIT :limit OFFSET :offset")
     List<EntryEntity> getEntriesPaged(int limit, int offset);
     
-    @Query("SELECT * FROM entries WHERE main_category = :category ORDER BY title ASC LIMIT :limit OFFSET :offset")
+    @Query("SELECT * FROM entries WHERE main_category = :category AND (main_category != 'TV Series' OR (seasons_json IS NOT NULL AND seasons_json != '' AND seasons_json != '[]')) ORDER BY title ASC LIMIT :limit OFFSET :offset")
     List<EntryEntity> getEntriesByCategoryPaged(String category, int limit, int offset);
     
     @Query("SELECT * FROM entries WHERE title LIKE '%' || :title || '%' ORDER BY title ASC LIMIT :limit OFFSET :offset")

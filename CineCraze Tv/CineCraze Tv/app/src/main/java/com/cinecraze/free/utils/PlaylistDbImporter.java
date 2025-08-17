@@ -30,7 +30,7 @@ public class PlaylistDbImporter {
 		Cursor cursor = null;
 		try {
 			sqlite = SQLiteDatabase.openDatabase(dbFile.getAbsolutePath(), null, SQLiteDatabase.OPEN_READONLY);
-			cursor = sqlite.rawQuery("SELECT id, title, sub_category, country, description, poster, thumbnail, rating, duration, year, main_category, servers_json, seasons_json, related_json FROM entries", null);
+			cursor = sqlite.rawQuery("SELECT id, title, sub_category, country, description, poster, thumbnail, rating, duration, year, main_category, servers_json, seasons_json, related_json FROM entries GROUP BY title", null);
 
 			List<EntryEntity> entities = new ArrayList<>();
 			if (cursor.moveToFirst()) {
