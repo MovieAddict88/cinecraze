@@ -1,17 +1,31 @@
 <?xml version="1.0" encoding="utf-8"?>
 <data-extraction-rules>
-    <cloud-backup>
-        <include domain="root" />
-        <include domain="file" />
-        <include domain="database" />
-        <include domain="sharedpref" />
-        <include domain="external" />
-    </cloud-backup>
-    <device-transfer>
-        <include domain="root" />
-        <include domain="file" />
-        <include domain="database" />
-        <include domain="sharedpref" />
-        <include domain="external" />
-    </device-transfer>
+	<cloud-backup>
+		<include domain="root" />
+		<include domain="file" />
+		<include domain="database" />
+		<include domain="sharedpref" />
+		<include domain="external" />
+
+		<!-- Prevent restoring outdated DB and update flags -->
+		<exclude domain="file" path="playlist.db" />
+		<exclude domain="file" path="playlist_temp.db" />
+		<exclude domain="sharedpref" path="playlist_update_prefs.xml" />
+		<exclude domain="sharedpref" path="enhanced_update_prefs.xml" />
+		<exclude domain="sharedpref" path="app_open_update_prefs.xml" />
+	</cloud-backup>
+	<device-transfer>
+		<include domain="root" />
+		<include domain="file" />
+		<include domain="database" />
+		<include domain="sharedpref" />
+		<include domain="external" />
+
+		<!-- Prevent restoring outdated DB and update flags -->
+		<exclude domain="file" path="playlist.db" />
+		<exclude domain="file" path="playlist_temp.db" />
+		<exclude domain="sharedpref" path="playlist_update_prefs.xml" />
+		<exclude domain="sharedpref" path="enhanced_update_prefs.xml" />
+		<exclude domain="sharedpref" path="app_open_update_prefs.xml" />
+	</device-transfer>
 </data-extraction-rules>
