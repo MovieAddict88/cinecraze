@@ -92,5 +92,82 @@ public class FragmentMainActivity extends AppCompatActivity {
 
 	private void checkManifestAndMaybeForceUpdate() { /* removed per new plan */ }
 
-	// ... existing code ...
+	private void setupStatusBar() {
+		if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.LOLLIPOP) {
+			Window window = getWindow();
+			window.addFlags(WindowManager.LayoutParams.FLAG_DRAWS_SYSTEM_BAR_BACKGROUNDS);
+			window.setStatusBarColor(android.graphics.Color.BLACK);
+		}
+	}
+
+	private void initializeViews() {
+		bottomNavigationView = findViewById(R.id.bottom_navigation);
+		closeSearchIcon = findViewById(R.id.close_search_icon);
+		searchLayout = findViewById(R.id.search_layout);
+		searchBar = findViewById(R.id.search_bar);
+		floatingSearchIcon = findViewById(R.id.floating_search_icon);
+		mainViewPager = findViewById(R.id.main_viewpager);
+		bannerAdContainer = findViewById(R.id.banner_ad_container);
+	}
+
+	private void setupViewPager() {
+		pagerAdapter = new MainPagerAdapter(this);
+		if (mainViewPager != null) {
+			mainViewPager.setAdapter(pagerAdapter);
+			mainViewPager.setOffscreenPageLimit(1);
+		}
+	}
+
+	private void setupBottomNavigation() {
+		if (bottomNavigationView == null || mainViewPager == null) return;
+		// Minimal sync between bottom nav and pager (indexes 0..n)
+		bottomNavigationView.setNavigationChangeListener((view, position) -> {
+			if (mainViewPager.getAdapter() != null && position < mainViewPager.getAdapter().getItemCount()) {
+				mainViewPager.setCurrentItem(position, true);
+			}
+		});
+		pageChangeCallback = new ViewPager2.OnPageChangeCallback() {
+			@Override public void onPageSelected(int position) {
+				// No-op; keep simple
+			}
+		};
+		mainViewPager.registerOnPageChangeCallback(pageChangeCallback);
+	}
+
+	private void setupSearch() {
+		if (floatingSearchIcon != null && searchLayout != null) {
+			floatingSearchIcon.setOnClickListener(v -> {
+				searchLayout.setVisibility(View.VISIBLE);
+				isSearchVisible = true;
+			});
+		}
+		if (closeSearchIcon != null && searchLayout != null) {
+			closeSearchIcon.setOnClickListener(v -> {
+				searchLayout.setVisibility(View.GONE);
+				isSearchVisible = false;
+			});
+		}
+	}
+
+	private void initializeAds() {
+		// No-op; ads setup removed/optional
+	}
+
+	private void applyInitialTabFromIntent() {
+		if (mainViewPager == null || mainViewPager.getAdapter() == null) return;
+		int initial = getIntent() != null ? getIntent().getIntExtra("initial_tab", 0) : 0;
+		if (initial >= 0 && initial < mainViewPager.getAdapter().getItemCount()) {
+			mainViewPager.setCurrentItem(initial, false);
+		}
+	}
+
+	public void hideBottomNavigation() {
+		if (bottomNavigationView != null) bottomNavigationView.setVisibility(View.GONE);
+	}
+
+	public void showBottomNavigation() {
+		if (bottomNavigationView != null) bottomNavigationView.setVisibility(View.VISIBLE);
+	}
+
+    // ... existing code ...
 }
