@@ -244,8 +244,20 @@ public class FragmentMainActivity extends AppCompatActivity {
         new android.os.Handler().postDelayed(() -> {
             showInterstitialAdIfReady();
         }, 2000); // 2 second delay
-        // Immediately check for manifest update on app open
-        checkManifestAndMaybeForceUpdate();
+        
+        // Only check for manifest updates if this is not a fresh install
+        // For fresh installs, we don't want to show update dialog immediately after download
+        SharedPreferences sp = getSharedPreferences(PREFS_APP_UPDATE, MODE_PRIVATE);
+        String lastHandled = sp.getString(KEY_LAST_HANDLED_MANIFEST_VERSION, "");
+        
+        if (!lastHandled.isEmpty()) {
+            // This is an existing installation, check for updates
+            checkManifestAndMaybeForceUpdate();
+        } else {
+            // This is a fresh install, don't check for updates yet
+            Log.d("FragmentMainActivity", "Fresh install - skipping initial update check");
+        }
+        
         // Ensure manifest watcher is running when main UI is active
         manifestHandler.removeCallbacks(manifestPoller);
         manifestHandler.postDelayed(manifestPoller, MANIFEST_POLL_INTERVAL_MS);
