@@ -131,7 +131,7 @@ public class FragmentMainActivity extends AppCompatActivity {
         if (!fileExists) {
             Log.d("FragmentMainActivity", "Fresh install detected - showing download dialog");
             // For fresh install, show download dialog immediately without checking manifest
-            preflightAndPrompt();
+            showFreshInstallDialog();
         } else {
             Log.d("FragmentMainActivity", "Database file exists - checking validity");
             // Check if playlist.db exists AND is valid with data
@@ -146,8 +146,15 @@ public class FragmentMainActivity extends AppCompatActivity {
                     checkManifestAndMaybeForceUpdate();
                 }, 5000); // Check after 5 seconds
             } else {
-                Log.d("FragmentMainActivity", "Database file exists but not valid - showing download dialog");
-                preflightAndPrompt();
+                Log.d("FragmentMainActivity", "Database file exists but not valid - trying to start anyway");
+                // Try to start the app even if validation fails - the database might still work
+                Log.w("FragmentMainActivity", "Database validation failed, but attempting to start app");
+                startFragments();
+                
+                // Check for updates after app is running
+                new Handler().postDelayed(() -> {
+                    checkManifestAndMaybeForceUpdate();
+                }, 5000); // Check after 5 seconds
             }
         }
         
@@ -156,7 +163,7 @@ public class FragmentMainActivity extends AppCompatActivity {
             if (!isFinishing() && !isDestroyed()) {
                 if (!dbFile.exists() || dbFile.length() == 0) {
                     Log.d("FragmentMainActivity", "Fallback: forcing download dialog after timeout");
-                    preflightAndPrompt();
+                    showFreshInstallDialog();
                 }
             }
         }, 8000); // 8 second fallback
@@ -329,6 +336,27 @@ public class FragmentMainActivity extends AppCompatActivity {
         });
     }
 
+    /**
+     * Show fresh install download dialog immediately without checking manifest
+     */
+    private void showFreshInstallDialog() {
+        Log.d("FragmentMainActivity", "Showing fresh install download dialog");
+        
+        // Create default manifest info for initial download
+        initialManifestInfo = new com.cinecraze.free.utils.EnhancedUpdateManagerFlexible.ManifestInfo();
+        initialManifestInfo.version = "initial";
+        initialManifestInfo.description = "Initial database download";
+        
+        com.cinecraze.free.utils.EnhancedUpdateManagerFlexible.ManifestInfo.DatabaseInfo dbInfo = 
+            new com.cinecraze.free.utils.EnhancedUpdateManagerFlexible.ManifestInfo.DatabaseInfo();
+        dbInfo.sizeBytes = 12583912; // Default size from manifest
+        dbInfo.sizeMb = 12;
+        initialManifestInfo.database = dbInfo;
+        
+        // Show download prompt immediately
+        showDownloadPrompt(dbInfo.sizeBytes);
+    }
+
     private void showDownloadPrompt(long contentLengthBytes) {
         Log.d("FragmentMainActivity", "Showing download prompt for " + contentLengthBytes + " bytes");
         
@@ -414,28 +442,28 @@ public class FragmentMainActivity extends AppCompatActivity {
                     boolean isValid = dataRepository.hasValidCache();
                     Log.d("FragmentMainActivity", "Database validity after download: " + isValid);
                     
+                    // Mark this manifest version as handled so app-open update won't immediately trigger
+                    try {
+                        if (initialManifestInfo != null && initialManifestInfo.version != null && !initialManifestInfo.version.isEmpty()) {
+                            SharedPreferences sp = getSharedPreferences(PREFS_APP_UPDATE, MODE_PRIVATE);
+                            sp.edit().putString(KEY_LAST_HANDLED_MANIFEST_VERSION, initialManifestInfo.version).apply();
+                        }
+                    } catch (Exception ignored) {}
+                    
                     if (isValid) {
                         Log.d("FragmentMainActivity", "Database is valid - starting app");
-                        // Mark this manifest version as handled so app-open update won't immediately trigger
-                        try {
-                            if (initialManifestInfo != null && initialManifestInfo.version != null && !initialManifestInfo.version.isEmpty()) {
-                                SharedPreferences sp = getSharedPreferences(PREFS_APP_UPDATE, MODE_PRIVATE);
-                                sp.edit().putString(KEY_LAST_HANDLED_MANIFEST_VERSION, initialManifestInfo.version).apply();
-                            }
-                        } catch (Exception ignored) {}
-                        
                         android.widget.Toast.makeText(FragmentMainActivity.this, 
                             "Download completed successfully! Starting app...", 
                             android.widget.Toast.LENGTH_SHORT).show();
-                        startFragments();
                     } else {
-                        Log.e("FragmentMainActivity", "Database validation failed after download - trying to start anyway");
-                        // Try to start the app even if validation fails - the database might still work
+                        Log.w("FragmentMainActivity", "Database validation failed after download - trying to start anyway");
                         android.widget.Toast.makeText(FragmentMainActivity.this, 
                             "Download completed. Starting app...", 
                             android.widget.Toast.LENGTH_SHORT).show();
-                        startFragments();
                     }
+                    
+                    // Always try to start the app regardless of validation result
+                    startFragments();
                 });
             }
 

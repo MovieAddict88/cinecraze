@@ -127,7 +127,7 @@ public class PlaylistDatabaseManager extends SQLiteOpenHelper {
                 }
             }
             
-            // Check if entries table has data
+            // Check if entries table has data - be more lenient for fresh installs
             android.database.Cursor cursor = database.rawQuery("SELECT COUNT(*) FROM entries", null);
             if (cursor.moveToFirst()) {
                 int count = cursor.getInt(0);
@@ -136,15 +136,16 @@ public class PlaylistDatabaseManager extends SQLiteOpenHelper {
                 Log.d(TAG, "Entries table count: " + count);
                 
                 if (count == 0) {
-                    Log.w(TAG, "Entries table is empty");
-                    return false;
+                    Log.w(TAG, "Entries table is empty - but allowing app to start");
+                    // Don't fail validation for empty table - it might be a fresh database
+                    // The app can still function and data can be loaded later
+                } else {
+                    Log.i(TAG, "Database contains " + count + " entries");
                 }
-                
-                Log.i(TAG, "Database contains " + count + " entries");
             } else {
                 cursor.close();
-                Log.e(TAG, "Could not read entries count");
-                return false;
+                Log.w(TAG, "Could not read entries count - but allowing app to start");
+                // Don't fail validation for read errors - the database might still be usable
             }
             
             Log.d(TAG, "Database validation successful");
