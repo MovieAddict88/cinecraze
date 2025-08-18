@@ -11,6 +11,7 @@ import com.cinecraze.free.database.entities.CacheMetadataEntity;
 import com.cinecraze.free.database.entities.EntryEntity;
 import com.cinecraze.free.models.Entry;
 
+import java.io.File;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.concurrent.TimeUnit;
@@ -49,31 +50,53 @@ public class DataRepository {
      */
     public boolean hasValidCache() {
         try {
+            Log.d(TAG, "=== CHECKING PLAYLIST DATABASE AVAILABILITY ===");
+            
+            // Check file path
+            File dbFile = downloadManager.getLocalDatabaseFile();
+            Log.d(TAG, "Expected database file path: " + dbFile.getAbsolutePath());
+            Log.d(TAG, "File exists: " + dbFile.exists());
+            if (dbFile.exists()) {
+                Log.d(TAG, "File size: " + dbFile.length() + " bytes");
+            }
+            
             // Check if playlist.db exists and is valid
-            if (!downloadManager.isDatabaseExists()) {
-                Log.d(TAG, "Playlist database does not exist");
+            boolean exists = downloadManager.isDatabaseExists();
+            Log.d(TAG, "Database file exists: " + exists);
+            
+            if (!exists) {
+                Log.d(TAG, "Playlist database file does not exist - needs download");
                 return false;
             }
             
-            if (downloadManager.isDatabaseCorrupted()) {
-                Log.d(TAG, "Playlist database is corrupted");
+            boolean corrupted = downloadManager.isDatabaseCorrupted();
+            Log.d(TAG, "Database file corrupted: " + corrupted);
+            
+            if (corrupted) {
+                Log.d(TAG, "Playlist database file is corrupted - needs re-download");
                 return false;
             }
             
             // Initialize the database manager
-            if (!playlistManager.initializeDatabase()) {
+            Log.d(TAG, "Attempting to initialize playlist database...");
+            boolean initialized = playlistManager.initializeDatabase();
+            Log.d(TAG, "Database initialization result: " + initialized);
+            
+            if (!initialized) {
                 Log.d(TAG, "Failed to initialize playlist database");
                 return false;
             }
             
             // Check if database has data
             PlaylistDatabaseManager.DatabaseStats stats = playlistManager.getDatabaseStats();
+            Log.d(TAG, "Database stats: " + stats.toString());
+            
             if (stats.totalEntries == 0) {
-                Log.d(TAG, "Playlist database is empty");
+                Log.d(TAG, "Playlist database is empty - needs data");
                 return false;
             }
             
-            Log.d(TAG, "Playlist database is valid with " + stats.totalEntries + " entries");
+            Log.d(TAG, "✅ Playlist database is valid with " + stats.totalEntries + " entries");
             return true;
             
         } catch (Exception e) {
@@ -111,6 +134,43 @@ public class DataRepository {
     }
 
     /**
+     * Force download the playlist database
+     */
+    public void forceDownloadDatabase(DataCallback callback) {
+        Log.i(TAG, "=== FORCING PLAYLIST DATABASE DOWNLOAD ===");
+        
+        downloadManager.downloadDatabase(new PlaylistDownloadManager.DownloadCallback() {
+            @Override
+            public void onDownloadStarted() {
+                Log.i(TAG, "Database download started");
+            }
+
+            @Override
+            public void onDownloadProgress(int progress) {
+                Log.d(TAG, "Download progress: " + progress + "%");
+            }
+
+            @Override
+            public void onDownloadCompleted(File dbFile) {
+                Log.i(TAG, "Database download completed: " + dbFile.getAbsolutePath());
+                // Try to load data after download
+                getPlaylistData(callback);
+            }
+
+            @Override
+            public void onDownloadFailed(String error) {
+                Log.e(TAG, "Database download failed: " + error);
+                callback.onError("Download failed: " + error);
+            }
+
+            @Override
+            public void onUpdateAvailable() {
+                Log.i(TAG, "Update available");
+            }
+        });
+    }
+
+    /**
      * Check if data is available and initialize if needed
      */
     public void ensureDataAvailable(DataCallback callback) {
@@ -118,8 +178,9 @@ public class DataRepository {
             Log.d(TAG, "Playlist database is available and valid");
             callback.onSuccess(new ArrayList<>()); // Return empty list to indicate success
         } else {
-            Log.d(TAG, "No valid playlist database - needs download");
-            callback.onError("No playlist database available");
+            Log.d(TAG, "No valid playlist database - starting download");
+            // Automatically start download
+            forceDownloadDatabase(callback);
         }
     }
 
