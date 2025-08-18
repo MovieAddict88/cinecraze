@@ -5,6 +5,7 @@ import android.util.Log;
 
 import com.cinecraze.free.database.CineCrazeDatabase;
 import com.cinecraze.free.database.DatabaseUtils;
+import com.cinecraze.free.database.PlaylistDatabaseManager;
 import com.cinecraze.free.database.entities.CacheMetadataEntity;
 import com.cinecraze.free.database.entities.EntryEntity;
 import com.cinecraze.free.models.Entry;
@@ -21,6 +22,8 @@ public class DataRepository {
     public static final int DEFAULT_PAGE_SIZE = 20; // Default items per page
 
     private CineCrazeDatabase database;
+    private PlaylistDatabaseManager playlistManager;
+    private Context context;
 
     public interface DataCallback {
         void onSuccess(List<Entry> entries);
@@ -33,93 +36,165 @@ public class DataRepository {
     }
 
     public DataRepository(Context context) {
-        database = CineCrazeDatabase.getInstance(context);
+        this.context = context.getApplicationContext();
+        this.database = CineCrazeDatabase.getInstance(context);
+        this.playlistManager = new PlaylistDatabaseManager(context);
     }
 
     /**
-     * Expose cache validity so UI can decide whether to prompt before downloading
+     * Check if playlist.db exists and is valid
      */
     public boolean hasValidCache() {
         try {
-            CacheMetadataEntity metadata = database.cacheMetadataDao().getMetadata(CACHE_KEY_PLAYLIST);
-            return metadata != null && isCacheValid(metadata.getLastUpdated());
+            // Check if playlist.db exists and is valid
+            if (!playlistManager.isDatabaseExists()) {
+                Log.d(TAG, "Playlist database does not exist");
+                return false;
+            }
+            
+            if (playlistManager.isDatabaseCorrupted()) {
+                Log.d(TAG, "Playlist database is corrupted");
+                return false;
+            }
+            
+            // Check if database has data
+            PlaylistDatabaseManager.DatabaseStats stats = playlistManager.getDatabaseStats();
+            if (stats.totalEntries == 0) {
+                Log.d(TAG, "Playlist database is empty");
+                return false;
+            }
+            
+            Log.d(TAG, "Playlist database is valid with " + stats.totalEntries + " entries");
+            return true;
+            
         } catch (Exception e) {
-            Log.e(TAG, "Error checking cache validity: " + e.getMessage(), e);
+            Log.e(TAG, "Error checking playlist database validity: " + e.getMessage(), e);
             return false;
         }
     }
 
     /**
-     * Get playlist data - checks cache first, no JSON fallback
+     * Get playlist data from playlist.db
      */
     public void getPlaylistData(DataCallback callback) {
-        // Only load from cache; do not fetch JSON
-        CacheMetadataEntity metadata = database.cacheMetadataDao().getMetadata(CACHE_KEY_PLAYLIST);
-
-        if (metadata != null && isCacheValid(metadata.getLastUpdated())) {
-            Log.d(TAG, "Using cached data");
-            loadFromCache(callback);
-        } else {
-            Log.d(TAG, "No valid cache and JSON fetch disabled");
-            callback.onError("No cached data available");
+        try {
+            if (!hasValidCache()) {
+                Log.d(TAG, "No valid playlist database available");
+                callback.onError("No playlist database available");
+                return;
+            }
+            
+            Log.d(TAG, "Loading data from playlist database");
+            loadFromPlaylistDatabase(callback);
+            
+        } catch (Exception e) {
+            Log.e(TAG, "Error getting playlist data: " + e.getMessage(), e);
+            callback.onError("Error loading playlist data: " + e.getMessage());
         }
     }
 
     /**
-     * Force refresh data is disabled (no JSON)
+     * Force refresh data - this would trigger a new download
      */
     public void forceRefreshData(DataCallback callback) {
-        Log.d(TAG, "forceRefreshData disabled: JSON fetch removed");
-        callback.onError("Refresh disabled");
+        Log.d(TAG, "forceRefreshData - would trigger playlist.db download");
+        callback.onError("Refresh requires playlist.db download");
     }
 
     /**
-     * Check if data is available in cache and initialize if needed
-     * For DB-first design, if cache empty return success (empty) so UI can proceed
+     * Check if data is available and initialize if needed
      */
     public void ensureDataAvailable(DataCallback callback) {
-        CacheMetadataEntity metadata = database.cacheMetadataDao().getMetadata(CACHE_KEY_PLAYLIST);
-
-        if (metadata != null && isCacheValid(metadata.getLastUpdated())) {
-            Log.d(TAG, "Cache is available and valid - ready for pagination");
-            callback.onSuccess(new ArrayList<>());
+        if (hasValidCache()) {
+            Log.d(TAG, "Playlist database is available and valid");
+            callback.onSuccess(new ArrayList<>()); // Return empty list to indicate success
         } else {
-            Log.d(TAG, "No valid cache - JSON fetch disabled, caller should rely on playlist.db");
-            callback.onError("No cached data");
+            Log.d(TAG, "No valid playlist database - needs download");
+            callback.onError("No playlist database available");
         }
     }
 
-    private boolean isCacheValid(long lastUpdatedMillis) {
-        long currentTimeMillis = System.currentTimeMillis();
-        long diffMillis = currentTimeMillis - lastUpdatedMillis;
-        long diffHours = TimeUnit.MILLISECONDS.toHours(diffMillis);
-        return diffHours < CACHE_EXPIRY_HOURS;
-    }
-
-    private void loadFromCache(DataCallback callback) {
+    /**
+     * Load data from playlist database
+     */
+    private void loadFromPlaylistDatabase(DataCallback callback) {
         try {
-            List<EntryEntity> entities = database.entryDao().getAllEntries();
-            List<Entry> entries = DatabaseUtils.entitiesToEntries(entities);
-
-            if (!entries.isEmpty()) {
-                callback.onSuccess(entries);
-            } else {
-                Log.d(TAG, "Cache is empty and JSON fetch disabled");
-                callback.onError("Cache empty");
+            // Get all entries from playlist database
+            android.database.Cursor cursor = playlistManager.getAllEntries();
+            if (cursor == null) {
+                callback.onError("Failed to load playlist data");
+                return;
             }
+            
+            List<Entry> entries = new ArrayList<>();
+            while (cursor.moveToNext()) {
+                Entry entry = cursorToEntry(cursor);
+                if (entry != null) {
+                    entries.add(entry);
+                }
+            }
+            cursor.close();
+            
+            Log.d(TAG, "Loaded " + entries.size() + " entries from playlist database");
+            callback.onSuccess(entries);
+            
         } catch (Exception e) {
-            Log.e(TAG, "Error loading from cache: " + e.getMessage(), e);
-            callback.onError("Error loading cache");
+            Log.e(TAG, "Error loading from playlist database: " + e.getMessage(), e);
+            callback.onError("Error loading playlist data: " + e.getMessage());
         }
     }
 
-    // Pagination APIs remain the same (read-only from cache)
+    /**
+     * Convert cursor to Entry object
+     */
+    private Entry cursorToEntry(android.database.Cursor cursor) {
+        try {
+            Entry entry = new Entry();
+            entry.setId(cursor.getInt(cursor.getColumnIndexOrThrow("id")));
+            entry.setTitle(cursor.getString(cursor.getColumnIndexOrThrow("title")));
+            entry.setDescription(cursor.getString(cursor.getColumnIndexOrThrow("description")));
+            entry.setImageUrl(cursor.getString(cursor.getColumnIndexOrThrow("image_url")));
+            entry.setVideoUrl(cursor.getString(cursor.getColumnIndexOrThrow("video_url")));
+            entry.setCategory(cursor.getString(cursor.getColumnIndexOrThrow("main_category")));
+            entry.setSubCategory(cursor.getString(cursor.getColumnIndexOrThrow("sub_category")));
+            entry.setYear(cursor.getString(cursor.getColumnIndexOrThrow("year")));
+            entry.setRating(cursor.getDouble(cursor.getColumnIndexOrThrow("rating")));
+            return entry;
+        } catch (Exception e) {
+            Log.e(TAG, "Error converting cursor to entry: " + e.getMessage());
+            return null;
+        }
+    }
+
+    // Pagination APIs using playlist database
     public void getPaginatedData(int page, int pageSize, PaginatedDataCallback callback) {
         try {
+            if (!hasValidCache()) {
+                callback.onError("No playlist database available");
+                return;
+            }
+            
             int offset = page * pageSize;
-            List<EntryEntity> entities = database.entryDao().getEntriesPaged(pageSize, offset);
-            List<Entry> entries = DatabaseUtils.entitiesToEntries(entities);
-            int totalCount = database.entryDao().getEntriesCount();
+            android.database.Cursor cursor = playlistManager.getRecentEntries(offset + pageSize);
+            if (cursor == null) {
+                callback.onError("Failed to load paginated data");
+                return;
+            }
+            
+            List<Entry> entries = new ArrayList<>();
+            int count = 0;
+            while (cursor.moveToNext() && count < pageSize) {
+                Entry entry = cursorToEntry(cursor);
+                if (entry != null) {
+                    entries.add(entry);
+                }
+                count++;
+            }
+            cursor.close();
+            
+            // Get total count
+            PlaylistDatabaseManager.DatabaseStats stats = playlistManager.getDatabaseStats();
+            int totalCount = stats.totalEntries;
             boolean hasMorePages = (offset + pageSize) < totalCount;
 
             Log.d(TAG, "Loaded page " + page + " with " + entries.size() + " items. Total: " + totalCount + ", HasMore: " + hasMorePages);
@@ -132,10 +207,34 @@ public class DataRepository {
 
     public void getPaginatedDataByCategory(String category, int page, int pageSize, PaginatedDataCallback callback) {
         try {
+            if (!hasValidCache()) {
+                callback.onError("No playlist database available");
+                return;
+            }
+            
+            android.database.Cursor cursor = playlistManager.getEntriesByCategory(category);
+            if (cursor == null) {
+                callback.onError("Failed to load category data");
+                return;
+            }
+            
+            List<Entry> entries = new ArrayList<>();
             int offset = page * pageSize;
-            List<EntryEntity> entities = database.entryDao().getEntriesByCategoryPaged(category, pageSize, offset);
-            List<Entry> entries = DatabaseUtils.entitiesToEntries(entities);
-            int totalCount = database.entryDao().getEntriesCountByCategory(category);
+            int count = 0;
+            int totalCount = 0;
+            
+            while (cursor.moveToNext()) {
+                totalCount++;
+                if (totalCount > offset && count < pageSize) {
+                    Entry entry = cursorToEntry(cursor);
+                    if (entry != null) {
+                        entries.add(entry);
+                    }
+                    count++;
+                }
+            }
+            cursor.close();
+            
             boolean hasMorePages = (offset + pageSize) < totalCount;
 
             Log.d(TAG, "Loaded category '" + category + "' page " + page + " with " + entries.size() + " items. Total: " + totalCount);
@@ -148,10 +247,34 @@ public class DataRepository {
 
     public void searchPaginated(String searchQuery, int page, int pageSize, PaginatedDataCallback callback) {
         try {
+            if (!hasValidCache()) {
+                callback.onError("No playlist database available");
+                return;
+            }
+            
+            android.database.Cursor cursor = playlistManager.searchEntries(searchQuery);
+            if (cursor == null) {
+                callback.onError("Failed to search data");
+                return;
+            }
+            
+            List<Entry> entries = new ArrayList<>();
             int offset = page * pageSize;
-            List<EntryEntity> entities = database.entryDao().searchByTitlePaged(searchQuery, pageSize, offset);
-            List<Entry> entries = DatabaseUtils.entitiesToEntries(entities);
-            int totalCount = database.entryDao().getSearchResultsCount(searchQuery);
+            int count = 0;
+            int totalCount = 0;
+            
+            while (cursor.moveToNext()) {
+                totalCount++;
+                if (totalCount > offset && count < pageSize) {
+                    Entry entry = cursorToEntry(cursor);
+                    if (entry != null) {
+                        entries.add(entry);
+                    }
+                    count++;
+                }
+            }
+            cursor.close();
+            
             boolean hasMorePages = (offset + pageSize) < totalCount;
 
             Log.d(TAG, "Search '" + searchQuery + "' page " + page + " with " + entries.size() + " results. Total: " + totalCount);
@@ -168,34 +291,113 @@ public class DataRepository {
     }
 
     public List<Entry> getEntriesByCategory(String category) {
-        List<EntryEntity> entities = database.entryDao().getEntriesByCategory(category);
-        return DatabaseUtils.entitiesToEntries(entities);
+        try {
+            if (!hasValidCache()) {
+                return new ArrayList<>();
+            }
+            
+            android.database.Cursor cursor = playlistManager.getEntriesByCategory(category);
+            if (cursor == null) {
+                return new ArrayList<>();
+            }
+            
+            List<Entry> entries = new ArrayList<>();
+            while (cursor.moveToNext()) {
+                Entry entry = cursorToEntry(cursor);
+                if (entry != null) {
+                    entries.add(entry);
+                }
+            }
+            cursor.close();
+            return entries;
+        } catch (Exception e) {
+            Log.e(TAG, "Error getting entries by category: " + e.getMessage(), e);
+            return new ArrayList<>();
+        }
     }
 
     public List<Entry> searchByTitle(String title) {
-        List<EntryEntity> entities = database.entryDao().searchByTitle(title);
-        return DatabaseUtils.entitiesToEntries(entities);
+        try {
+            if (!hasValidCache()) {
+                return new ArrayList<>();
+            }
+            
+            android.database.Cursor cursor = playlistManager.searchEntries(title);
+            if (cursor == null) {
+                return new ArrayList<>();
+            }
+            
+            List<Entry> entries = new ArrayList<>();
+            while (cursor.moveToNext()) {
+                Entry entry = cursorToEntry(cursor);
+                if (entry != null) {
+                    entries.add(entry);
+                }
+            }
+            cursor.close();
+            return entries;
+        } catch (Exception e) {
+            Log.e(TAG, "Error searching by title: " + e.getMessage(), e);
+            return new ArrayList<>();
+        }
     }
 
     public List<Entry> getAllCachedEntries() {
-        List<EntryEntity> entities = database.entryDao().getAllEntries();
-        return DatabaseUtils.entitiesToEntries(entities);
+        try {
+            if (!hasValidCache()) {
+                return new ArrayList<>();
+            }
+            
+            android.database.Cursor cursor = playlistManager.getAllEntries();
+            if (cursor == null) {
+                return new ArrayList<>();
+            }
+            
+            List<Entry> entries = new ArrayList<>();
+            while (cursor.moveToNext()) {
+                Entry entry = cursorToEntry(cursor);
+                if (entry != null) {
+                    entries.add(entry);
+                }
+            }
+            cursor.close();
+            return entries;
+        } catch (Exception e) {
+            Log.e(TAG, "Error getting all entries: " + e.getMessage(), e);
+            return new ArrayList<>();
+        }
     }
 
     public int getTotalEntriesCount() {
-        return database.entryDao().getEntriesCount();
+        try {
+            if (!hasValidCache()) {
+                return 0;
+            }
+            
+            PlaylistDatabaseManager.DatabaseStats stats = playlistManager.getDatabaseStats();
+            return stats.totalEntries;
+        } catch (Exception e) {
+            Log.e(TAG, "Error getting total entries count: " + e.getMessage(), e);
+            return 0;
+        }
     }
 
     public List<String> getUniqueGenres() {
         try {
-            List<String> genres = database.entryDao().getUniqueGenres();
-            List<String> filteredGenres = new ArrayList<>();
-            for (String genre : genres) {
-                if (genre != null && !genre.trim().isEmpty() && !genre.equalsIgnoreCase("null")) {
-                    filteredGenres.add(genre.trim());
+            if (!hasValidCache()) {
+                return new ArrayList<>();
+            }
+            
+            // Get all entries and extract unique genres
+            List<Entry> entries = getAllCachedEntries();
+            List<String> genres = new ArrayList<>();
+            for (Entry entry : entries) {
+                if (entry.getCategory() != null && !entry.getCategory().trim().isEmpty() && 
+                    !entry.getCategory().equalsIgnoreCase("null") && !genres.contains(entry.getCategory())) {
+                    genres.add(entry.getCategory().trim());
                 }
             }
-            return filteredGenres;
+            return genres;
         } catch (Exception e) {
             Log.e(TAG, "Error getting unique genres: " + e.getMessage(), e);
             return new ArrayList<>();
@@ -204,14 +406,12 @@ public class DataRepository {
 
     public List<String> getUniqueCountries() {
         try {
-            List<String> countries = database.entryDao().getUniqueCountries();
-            List<String> filteredCountries = new ArrayList<>();
-            for (String country : countries) {
-                if (country != null && !country.trim().isEmpty() && !country.equalsIgnoreCase("null")) {
-                    filteredCountries.add(country.trim());
-                }
+            if (!hasValidCache()) {
+                return new ArrayList<>();
             }
-            return filteredCountries;
+            
+            // For now, return empty list as country data might not be available
+            return new ArrayList<>();
         } catch (Exception e) {
             Log.e(TAG, "Error getting unique countries: " + e.getMessage(), e);
             return new ArrayList<>();
@@ -220,66 +420,136 @@ public class DataRepository {
 
     public List<String> getUniqueYears() {
         try {
-            List<String> years = database.entryDao().getUniqueYears();
-            List<String> filteredYears = new ArrayList<>();
-            for (String year : years) {
-                if (year != null && !year.trim().isEmpty() && !year.equalsIgnoreCase("null") && !year.equals("0")) {
-                    filteredYears.add(year.trim());
+            if (!hasValidCache()) {
+                return new ArrayList<>();
+            }
+            
+            // Get all entries and extract unique years
+            List<Entry> entries = getAllCachedEntries();
+            List<String> years = new ArrayList<>();
+            for (Entry entry : entries) {
+                if (entry.getYear() != null && !entry.getYear().trim().isEmpty() && 
+                    !entry.getYear().equalsIgnoreCase("null") && !entry.getYear().equals("0") && 
+                    !years.contains(entry.getYear())) {
+                    years.add(entry.getYear().trim());
                 }
             }
-            return filteredYears;
+            return years;
         } catch (Exception e) {
             Log.e(TAG, "Error getting unique years: " + e.getMessage(), e);
             return new ArrayList<>();
         }
     }
 
-    public void getPaginatedFilteredData(String genre, String country, String year, int page, int pageSize, PaginatedDataCallback callback) {
+    public List<Entry> getTopRatedEntries(int count) {
         try {
-            int offset = page * pageSize;
-            List<EntryEntity> entities = database.entryDao().getEntriesFilteredPaged(
-                genre == null || genre.isEmpty() ? null : genre,
-                country == null || country.isEmpty() ? null : country,
-                year == null || year.isEmpty() ? null : year,
-                pageSize, offset
-            );
-            List<Entry> entries = DatabaseUtils.entitiesToEntries(entities);
-            int totalCount = database.entryDao().getEntriesFilteredCount(
-                genre == null || genre.isEmpty() ? null : genre,
-                country == null || country.isEmpty() ? null : country,
-                year == null || year.isEmpty() ? null : year
-            );
-            boolean hasMorePages = (offset + pageSize) < totalCount;
-
-            Log.d(TAG, "Loaded filtered page " + page + " with " + entries.size() + " items. Total: " + totalCount);
-            callback.onSuccess(entries, hasMorePages, totalCount);
+            if (!hasValidCache()) {
+                return new ArrayList<>();
+            }
+            
+            // Get recent entries as a simple implementation
+            android.database.Cursor cursor = playlistManager.getRecentEntries(count);
+            if (cursor == null) {
+                return new ArrayList<>();
+            }
+            
+            List<Entry> entries = new ArrayList<>();
+            while (cursor.moveToNext()) {
+                Entry entry = cursorToEntry(cursor);
+                if (entry != null) {
+                    entries.add(entry);
+                }
+            }
+            cursor.close();
+            return entries;
         } catch (Exception e) {
-            Log.e(TAG, "Error loading filtered paginated data: " + e.getMessage(), e);
-            callback.onError("Error loading filtered page: " + e.getMessage());
+            Log.e(TAG, "Error getting top rated entries: " + e.getMessage(), e);
+            return new ArrayList<>();
         }
     }
 
-    public List<Entry> getTopRatedEntries(int count) {
-        List<EntryEntity> entities = database.entryDao().getTopRatedEntries(count);
-        return DatabaseUtils.entitiesToEntries(entities);
+    public List<Entry> getRecentlyAdded(int count) {
+        try {
+            if (!hasValidCache()) {
+                return new ArrayList<>();
+            }
+            
+            // Get recent entries
+            android.database.Cursor cursor = playlistManager.getRecentEntries(count);
+            if (cursor == null) {
+                return new ArrayList<>();
+            }
+            
+            List<Entry> entries = new ArrayList<>();
+            while (cursor.moveToNext()) {
+                Entry entry = cursorToEntry(cursor);
+                if (entry != null) {
+                    entries.add(entry);
+                }
+            }
+            cursor.close();
+            return entries;
+        } catch (Exception e) {
+            Log.e(TAG, "Error getting recently added entries: " + e.getMessage(), e);
+            return new ArrayList<>();
+        }
     }
 
-    public List<Entry> getRecentlyAdded(int count) {
-        List<EntryEntity> entities = database.entryDao().getRecentlyAdded(count);
-        return DatabaseUtils.entitiesToEntries(entities);
+    public void getPaginatedFilteredData(String genre, String country, String year, int page, int pageSize, PaginatedDataCallback callback) {
+        try {
+            if (!hasValidCache()) {
+                callback.onError("No playlist database available");
+                return;
+            }
+            
+            // For now, just get all entries and filter in memory
+            List<Entry> allEntries = getAllCachedEntries();
+            List<Entry> filteredEntries = new ArrayList<>();
+            
+            for (Entry entry : allEntries) {
+                boolean matchesGenre = genre == null || genre.isEmpty() || 
+                    (entry.getCategory() != null && entry.getCategory().equals(genre));
+                boolean matchesCountry = country == null || country.isEmpty(); // Country not available in playlist.db
+                boolean matchesYear = year == null || year.isEmpty() || 
+                    (entry.getYear() != null && entry.getYear().equals(year));
+                
+                if (matchesGenre && matchesCountry && matchesYear) {
+                    filteredEntries.add(entry);
+                }
+            }
+            
+            int offset = page * pageSize;
+            int totalCount = filteredEntries.size();
+            int endIndex = Math.min(offset + pageSize, totalCount);
+            int startIndex = Math.min(offset, totalCount);
+            
+            List<Entry> pageEntries = filteredEntries.subList(startIndex, endIndex);
+            boolean hasMorePages = (offset + pageSize) < totalCount;
+            
+            callback.onSuccess(pageEntries, hasMorePages, totalCount);
+        } catch (Exception e) {
+            Log.e(TAG, "Error loading filtered data: " + e.getMessage(), e);
+            callback.onError("Error loading filtered data: " + e.getMessage());
+        }
     }
 
     public Entry findEntryByHashId(int hashId) {
         try {
-            List<Entry> all = getAllCachedEntries();
-            for (Entry e : all) {
-                if (e != null && e.getId() == hashId) {
-                    return e;
-                }
+            if (!hasValidCache()) {
+                return null;
             }
+            
+            android.database.Cursor cursor = playlistManager.getEntryById(hashId);
+            if (cursor == null || !cursor.moveToFirst()) {
+                return null;
+            }
+            
+            Entry entry = cursorToEntry(cursor);
+            cursor.close();
+            return entry;
         } catch (Exception e) {
-            Log.e(TAG, "Error finding entry by hash id: " + e.getMessage(), e);
+            Log.e(TAG, "Error finding entry by hash ID: " + e.getMessage(), e);
+            return null;
         }
-        return null;
     }
 }

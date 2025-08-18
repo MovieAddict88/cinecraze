@@ -200,6 +200,17 @@ public class PlaylistDatabaseManager extends SQLiteOpenHelper {
     }
     
     /**
+     * Get all entries
+     */
+    public android.database.Cursor getAllEntries() {
+        if (database == null || !database.isOpen()) {
+            return null;
+        }
+        
+        return database.rawQuery("SELECT * FROM entries ORDER BY title", null);
+    }
+    
+    /**
      * Get all categories
      */
     public android.database.Cursor getAllCategories() {
