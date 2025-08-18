@@ -100,7 +100,14 @@ public class PlaylistDownloadManager {
      * Download database from GitHub
      */
     public void downloadDatabase(DownloadCallback callback) {
-        if (callback != null) callback.onDownloadFailed("Download disabled (using bundled assets DB)");
+        if (callback != null) callback.onDownloadFailed("Download disabled: using bundled database");
+    }
+    
+    /**
+     * Whether remote download feature is enabled (URLs configured)
+     */
+    public boolean isRemoteDownloadEnabled() {
+        return GITHUB_DB_URL != null && !GITHUB_DB_URL.trim().isEmpty();
     }
     
     /**
@@ -140,15 +147,16 @@ public class PlaylistDownloadManager {
     public boolean isDatabaseCorrupted() {
         File dbFile = getLocalDatabaseFile();
         if (!dbFile.exists()) {
+            // Not present is not corruption; initialization will copy from assets
+            return false;
+        }
+        
+        // Consider a clearly empty file corrupted
+        if (dbFile.length() == 0) {
             return true;
         }
         
-        // Basic check: file should be at least 16KB (allow small bundled DBs)
-        if (dbFile.length() < 16 * 1024) {
-            return true;
-        }
-        
-        // TODO: Add more sophisticated corruption checks
+        // More robust validation is performed elsewhere when opening/validating tables
         return false;
     }
 }

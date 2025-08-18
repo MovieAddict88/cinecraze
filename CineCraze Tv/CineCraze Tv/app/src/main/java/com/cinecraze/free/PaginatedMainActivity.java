@@ -260,8 +260,26 @@ public class PaginatedMainActivity extends AppCompatActivity implements Paginate
             return;
         }
 
-        // With DB-first approach, directly show download prompt without JSON HEAD
-        showDownloadPrompt(-1L);
+        // Try to initialize from bundled assets silently
+        dataRepository.ensureDataAvailable(new DataRepository.DataCallback() {
+            @Override
+            public void onSuccess(List<com.cinecraze.free.models.Entry> entries) {
+                loadFirstPage();
+                setupCarouselFromCache();
+            }
+
+            @Override
+            public void onError(String error) {
+                // Only show download prompt if remote download is actually enabled
+                com.cinecraze.free.utils.PlaylistDownloadManager dm = new com.cinecraze.free.utils.PlaylistDownloadManager(PaginatedMainActivity.this);
+                if (dm.isRemoteDownloadEnabled()) {
+                    showDownloadPrompt(-1L);
+                } else {
+                    findViewById(R.id.progress_bar).setVisibility(View.GONE);
+                    Toast.makeText(PaginatedMainActivity.this, "Failed to initialize: " + error, Toast.LENGTH_LONG).show();
+                }
+            }
+        });
     }
 
     private void setupCarouselFromCache() {

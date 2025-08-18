@@ -44,7 +44,7 @@ public class DatabaseInfoActivity extends Activity {
         refreshButton = findViewById(R.id.refresh_button);
         backButton = findViewById(R.id.back_button);
         
-        downloadButton.setOnClickListener(v -> Toast.makeText(this, "Download disabled (using bundled DB)", Toast.LENGTH_SHORT).show());
+        downloadButton.setOnClickListener(v -> Toast.makeText(this, "Download disabled: using bundled database", Toast.LENGTH_SHORT).show());
         refreshButton.setOnClickListener(v -> refreshDatabaseInfo());
         backButton.setOnClickListener(v -> finish());
     }

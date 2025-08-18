@@ -133,20 +133,41 @@ public class DataRepository {
      * Force download the playlist database
      */
     public void forceDownloadDatabase(DataCallback callback) {
-        callback.onError("Download disabled: using bundled assets database");
+        callback.onError("Download disabled: using bundled database");
     }
 
     /**
      * Check if data is available and initialize if needed
      */
     public void ensureDataAvailable(DataCallback callback) {
-        if (hasValidCache()) {
-            Log.d(TAG, "Playlist database is available and valid");
-            callback.onSuccess(new ArrayList<>()); // Return empty list to indicate success
-        } else {
-            Log.d(TAG, "No valid playlist database - starting download");
-            // Automatically start download
-            forceDownloadDatabase(callback);
+        try {
+            if (hasValidCache()) {
+                Log.d(TAG, "Playlist database is available and valid");
+                callback.onSuccess(new ArrayList<>()); // Return empty list to indicate success
+                return;
+            }
+            
+            Log.d(TAG, "No valid playlist database - attempting to initialize from bundled assets");
+            boolean initialized = playlistManager.initializeDatabase();
+            if (initialized) {
+                Log.d(TAG, "Initialized from bundled assets successfully");
+                callback.onSuccess(new ArrayList<>());
+                return;
+            }
+            
+            // If remote download is enabled, surface that a download is required
+            if (downloadManager.isRemoteDownloadEnabled()) {
+                Log.d(TAG, "Remote download enabled - initial download required");
+                callback.onError("Initial download required");
+                return;
+            }
+            
+            // Otherwise, fail with a clear message
+            Log.e(TAG, "Bundled database missing or invalid; cannot initialize");
+            callback.onError("Bundled database missing or invalid");
+        } catch (Exception e) {
+            Log.e(TAG, "Error ensuring data availability: " + e.getMessage(), e);
+            callback.onError("Initialization error: " + e.getMessage());
         }
     }
 
