@@ -28,6 +28,9 @@ public class DataRepository {
     private PlaylistDownloadManager downloadManager;
     private Context context;
 
+    // Column projection identical to PlaylistDatabaseManager for list/search queries
+    private static final String ENTRY_LIST_COLUMNS = "id, title, description, main_category, sub_category, country, poster, thumbnail, rating, duration, year, servers_json";
+
     public interface DataCallback {
         void onSuccess(List<Entry> entries);
         void onError(String error);
@@ -617,7 +620,7 @@ public class DataRepository {
                 cursor = playlistManager.getRecentEntries(offset + pageSize);
             } else {
                 // Fallback: simple where clauses built dynamically (case-sensitive match on stored strings)
-                StringBuilder sql = new StringBuilder("SELECT * FROM entries WHERE 1=1");
+                StringBuilder sql = new StringBuilder("SELECT " + ENTRY_LIST_COLUMNS + " FROM entries WHERE 1=1");
                 java.util.List<String> args = new java.util.ArrayList<>();
                 if (genre != null && !genre.isEmpty()) { sql.append(" AND sub_category = ?"); args.add(genre); }
                 if (country != null && !country.isEmpty()) { sql.append(" AND country = ?"); args.add(country); }

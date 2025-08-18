@@ -32,6 +32,12 @@ public class PlaylistDatabaseManager extends SQLiteOpenHelper {
         this.context = context.getApplicationContext();
         this.downloadManager = new com.cinecraze.free.utils.PlaylistDownloadManager(context);
     }
+
+    /**
+     * Column projection for list/search queries to avoid loading huge JSON fields
+     * that can cause CursorWindow "Row too big" errors.
+     */
+    private static final String ENTRY_LIST_COLUMNS = "id, title, description, main_category, sub_category, country, poster, thumbnail, rating, duration, year, servers_json";
     
     /**
      * Initialize the database using the downloaded playlist.db file
@@ -240,7 +246,7 @@ public class PlaylistDatabaseManager extends SQLiteOpenHelper {
             return null;
         }
         
-        String searchQuery = "SELECT * FROM entries WHERE title LIKE ? ORDER BY title";
+        String searchQuery = "SELECT " + ENTRY_LIST_COLUMNS + " FROM entries WHERE title LIKE ? ORDER BY title";
         return database.rawQuery(searchQuery, new String[]{"%" + query + "%"});
     }
     
@@ -257,21 +263,21 @@ public class PlaylistDatabaseManager extends SQLiteOpenHelper {
         String query;
         String[] args;
         if (lower.equals("movies") || lower.equals("movie") || lower.equals("films") || lower.equals("film")) {
-            query = "SELECT * FROM entries WHERE LOWER(main_category) IN ('movie','movies','film','films') ORDER BY title";
+            query = "SELECT " + ENTRY_LIST_COLUMNS + " FROM entries WHERE LOWER(main_category) IN ('movie','movies','film','films') ORDER BY title";
             args = null;
         } else if (lower.equals("tv shows") || lower.equals("tv") || lower.equals("series") || lower.equals("tv series")) {
-            query = "SELECT * FROM entries WHERE LOWER(main_category) IN ('tv shows','tv','series','tv series') ORDER BY title";
+            query = "SELECT " + ENTRY_LIST_COLUMNS + " FROM entries WHERE LOWER(main_category) IN ('tv shows','tv','series','tv series') ORDER BY title";
             args = null;
         } else if (lower.equals("live") || lower.equals("live tv") || lower.equals("iptv") || lower.equals("tv live")) {
-            query = "SELECT * FROM entries WHERE LOWER(main_category) LIKE 'live%' OR LOWER(main_category) LIKE '%live tv%' ORDER BY title";
+            query = "SELECT " + ENTRY_LIST_COLUMNS + " FROM entries WHERE LOWER(main_category) LIKE 'live%' OR LOWER(main_category) LIKE '%live tv%' ORDER BY title";
             args = null;
         } else if (lower.isEmpty()) {
             // No category filter
-            query = "SELECT * FROM entries ORDER BY title";
+            query = "SELECT " + ENTRY_LIST_COLUMNS + " FROM entries ORDER BY title";
             args = null;
         } else {
             // Fallback: case-insensitive exact match
-            query = "SELECT * FROM entries WHERE LOWER(main_category) = ? ORDER BY title";
+            query = "SELECT " + ENTRY_LIST_COLUMNS + " FROM entries WHERE LOWER(main_category) = ? ORDER BY title";
             args = new String[]{ lower };
         }
         return args == null ? database.rawQuery(query, null) : database.rawQuery(query, args);
@@ -285,7 +291,7 @@ public class PlaylistDatabaseManager extends SQLiteOpenHelper {
             return null;
         }
         
-        String query = "SELECT * FROM entries WHERE sub_category = ? ORDER BY title";
+        String query = "SELECT " + ENTRY_LIST_COLUMNS + " FROM entries WHERE sub_category = ? ORDER BY title";
         return database.rawQuery(query, new String[]{subCategory});
     }
     
@@ -297,7 +303,7 @@ public class PlaylistDatabaseManager extends SQLiteOpenHelper {
             return null;
         }
         
-        return database.rawQuery("SELECT * FROM entries ORDER BY title", null);
+        return database.rawQuery("SELECT " + ENTRY_LIST_COLUMNS + " FROM entries ORDER BY title", null);
     }
     
     /**
@@ -329,7 +335,9 @@ public class PlaylistDatabaseManager extends SQLiteOpenHelper {
             return null;
         }
         
-        return database.rawQuery("SELECT * FROM entries WHERE id = ?", new String[]{String.valueOf(id)});
+        // For detail view, include JSON columns
+        String detailColumns = ENTRY_LIST_COLUMNS + ", servers_json, seasons_json, related_json";
+        return database.rawQuery("SELECT " + detailColumns + " FROM entries WHERE id = ?", new String[]{String.valueOf(id)});
     }
     
     /**
@@ -340,7 +348,7 @@ public class PlaylistDatabaseManager extends SQLiteOpenHelper {
             return null;
         }
         
-        return database.rawQuery("SELECT * FROM entries ORDER BY id DESC LIMIT ?", new String[]{String.valueOf(limit)});
+        return database.rawQuery("SELECT " + ENTRY_LIST_COLUMNS + " FROM entries ORDER BY id DESC LIMIT ?", new String[]{String.valueOf(limit)});
     }
     
     /**
@@ -351,7 +359,7 @@ public class PlaylistDatabaseManager extends SQLiteOpenHelper {
             return null;
         }
         
-        return database.rawQuery("SELECT * FROM entries WHERE year = ? ORDER BY title", new String[]{year});
+        return database.rawQuery("SELECT " + ENTRY_LIST_COLUMNS + " FROM entries WHERE year = ? ORDER BY title", new String[]{year});
     }
     
     /**
