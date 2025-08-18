@@ -1425,7 +1425,7 @@ public class DetailsActivity extends AppCompatActivity {
             Toast.makeText(this, "Download started", Toast.LENGTH_SHORT).show();
             // Switch to downloads tab if coming from FragmentMainActivity
             try {
-                Intent i = new Intent(this, FragmentMainActivity.class);
+                Intent i = new Intent(this, com.cinecraze.free.FragmentMainActivity.class);
                 i.addFlags(Intent.FLAG_ACTIVITY_REORDER_TO_FRONT);
                 i.putExtra("initial_tab", 4);
                 startActivity(i);

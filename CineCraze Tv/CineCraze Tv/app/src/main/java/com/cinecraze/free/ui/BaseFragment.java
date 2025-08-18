@@ -114,15 +114,16 @@ public abstract class BaseFragment extends Fragment {
                         floatingPaginationLayout.setVisibility(shouldShow ? View.VISIBLE : View.GONE);
                     }
 
-                    // Hide/show bottom navigation
-                    if (getActivity() instanceof FragmentMainActivity) {
-                        FragmentMainActivity activity = (FragmentMainActivity) getActivity();
-                        if (dy > 0 && lastDy <= 0) {
-                            // Scrolling down
-                            activity.hideBottomNavigation();
-                        } else if (dy < 0 && lastDy > 0) {
-                            // Scrolling up
-                            activity.showBottomNavigation();
+                    // Hide/show bottom navigation without direct activity reference
+                    android.app.Activity activity = getActivity();
+                    if (activity != null) {
+                        android.view.View nav = activity.findViewById(R.id.bottom_navigation);
+                        if (nav != null) {
+                            if (dy > 0 && lastDy <= 0) {
+                                nav.setVisibility(View.GONE);
+                            } else if (dy < 0 && lastDy > 0) {
+                                nav.setVisibility(View.VISIBLE);
+                            }
                         }
                     }
                     lastDy = dy;
