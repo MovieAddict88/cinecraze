@@ -24,13 +24,13 @@ public class PlaylistDatabaseManager extends SQLiteOpenHelper {
     private static final int DATABASE_VERSION = 1;
     
     private Context context;
-    private PlaylistDownloadManager downloadManager;
+    private com.cinecraze.free.utils.PlaylistDownloadManager downloadManager;
     private SQLiteDatabase database;
     
     public PlaylistDatabaseManager(Context context) {
         super(context, DATABASE_NAME, null, DATABASE_VERSION);
         this.context = context.getApplicationContext();
-        this.downloadManager = new PlaylistDownloadManager(context);
+        this.downloadManager = new com.cinecraze.free.utils.PlaylistDownloadManager(context);
     }
     
     /**
@@ -40,13 +40,18 @@ public class PlaylistDatabaseManager extends SQLiteOpenHelper {
         try {
             Log.d(TAG, "=== INITIALIZING PLAYLIST DATABASE ===");
             
+            // Ensure database exists by copying from assets on first run
             File localDbFile = downloadManager.getLocalDatabaseFile();
             Log.d(TAG, "Local database file path: " + localDbFile.getAbsolutePath());
             Log.d(TAG, "Local database file exists: " + localDbFile.exists());
             
             if (!localDbFile.exists()) {
-                Log.w(TAG, "Local database file not found");
-                return false;
+                Log.w(TAG, "Local database file not found - attempting to copy from assets");
+                if (!copyFromAssets(localDbFile)) {
+                    Log.e(TAG, "Failed to copy playlist.db from assets");
+                    return false;
+                }
+                Log.i(TAG, "Copied playlist.db from assets");
             }
             
             Log.d(TAG, "Local database file size: " + localDbFile.length() + " bytes");
@@ -80,6 +85,29 @@ public class PlaylistDatabaseManager extends SQLiteOpenHelper {
         } catch (Exception e) {
             Log.e(TAG, "Error initializing database", e);
             return false;
+        }
+    }
+
+    private boolean copyFromAssets(File targetFile) {
+        android.content.res.AssetManager am = context.getAssets();
+        java.io.InputStream in = null;
+        java.io.OutputStream out = null;
+        try {
+            in = am.open("playlist.db", android.content.res.AssetManager.ACCESS_BUFFER);
+            out = new java.io.FileOutputStream(targetFile);
+            byte[] buffer = new byte[8192];
+            int read;
+            while ((read = in.read(buffer)) != -1) {
+                out.write(buffer, 0, read);
+            }
+            out.flush();
+            return true;
+        } catch (Exception e) {
+            Log.e(TAG, "Error copying DB from assets", e);
+            return false;
+        } finally {
+            try { if (in != null) in.close(); } catch (Exception ignored) {}
+            try { if (out != null) out.close(); } catch (Exception ignored) {}
         }
     }
     

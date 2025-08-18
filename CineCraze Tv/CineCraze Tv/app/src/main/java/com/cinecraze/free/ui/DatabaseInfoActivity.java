@@ -44,7 +44,7 @@ public class DatabaseInfoActivity extends Activity {
         refreshButton = findViewById(R.id.refresh_button);
         backButton = findViewById(R.id.back_button);
         
-        downloadButton.setOnClickListener(v -> startDownload());
+        downloadButton.setOnClickListener(v -> Toast.makeText(this, "Download disabled (using bundled DB)", Toast.LENGTH_SHORT).show());
         refreshButton.setOnClickListener(v -> refreshDatabaseInfo());
         backButton.setOnClickListener(v -> finish());
     }
@@ -75,10 +75,8 @@ public class DatabaseInfoActivity extends Activity {
             info.append("📅 Last Modified: ").append(locationHelper.getDatabaseLastModified()).append("\n");
         }
         
-        // Download manager info
-        info.append("\n=== DOWNLOAD MANAGER INFO ===\n\n");
-        info.append("🔄 Update Needed: ").append(downloadManager.isUpdateNeeded()).append("\n");
-        info.append("⏰ Last Update: ").append(downloadManager.getLastUpdateTime()).append("\n");
+        // Bundled info
+        info.append("\n=== BUNDLED DATABASE INFO ===\n\n");
         info.append("💾 Database Size: ").append(String.format("%.2f", downloadManager.getDatabaseSizeMB())).append(" MB\n");
         info.append("⚠️ Corrupted: ").append(downloadManager.isDatabaseCorrupted()).append("\n");
         
@@ -104,43 +102,5 @@ public class DatabaseInfoActivity extends Activity {
         locationHelper.logDatabaseInfo();
     }
     
-    private void startDownload() {
-        downloadManager.downloadDatabase(new PlaylistDownloadManager.DownloadCallback() {
-            @Override
-            public void onDownloadStarted() {
-                runOnUiThread(() -> {
-                    Toast.makeText(DatabaseInfoActivity.this, "Download started", Toast.LENGTH_SHORT).show();
-                });
-            }
-            
-            @Override
-            public void onDownloadProgress(int progress) {
-                runOnUiThread(() -> {
-                    Toast.makeText(DatabaseInfoActivity.this, "Download progress: " + progress + "%", Toast.LENGTH_SHORT).show();
-                });
-            }
-            
-            @Override
-            public void onDownloadCompleted(java.io.File dbFile) {
-                runOnUiThread(() -> {
-                    Toast.makeText(DatabaseInfoActivity.this, "Download completed!", Toast.LENGTH_SHORT).show();
-                    refreshDatabaseInfo();
-                });
-            }
-            
-            @Override
-            public void onDownloadFailed(String error) {
-                runOnUiThread(() -> {
-                    Toast.makeText(DatabaseInfoActivity.this, "Download failed: " + error, Toast.LENGTH_LONG).show();
-                });
-            }
-            
-            @Override
-            public void onUpdateAvailable() {
-                runOnUiThread(() -> {
-                    Toast.makeText(DatabaseInfoActivity.this, "Update available", Toast.LENGTH_SHORT).show();
-                });
-            }
-        });
-    }
+    private void startDownload() { /* disabled */ }
 }

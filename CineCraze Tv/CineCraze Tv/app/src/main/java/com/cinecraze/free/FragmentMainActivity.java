@@ -43,7 +43,7 @@ import android.content.SharedPreferences;
 import android.os.Handler;
 import android.os.Looper;
 
-import com.cinecraze.free.utils.EnhancedUpdateManagerFlexible;
+// Update system removed in new plan
 import android.util.Log;
 import java.io.File;
 import com.cinecraze.free.database.PlaylistDatabaseManager;

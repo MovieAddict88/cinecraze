@@ -137,37 +137,7 @@ public class DataRepository {
      * Force download the playlist database
      */
     public void forceDownloadDatabase(DataCallback callback) {
-        Log.i(TAG, "=== FORCING PLAYLIST DATABASE DOWNLOAD ===");
-        
-        downloadManager.downloadDatabase(new PlaylistDownloadManager.DownloadCallback() {
-            @Override
-            public void onDownloadStarted() {
-                Log.i(TAG, "Database download started");
-            }
-
-            @Override
-            public void onDownloadProgress(int progress) {
-                Log.d(TAG, "Download progress: " + progress + "%");
-            }
-
-            @Override
-            public void onDownloadCompleted(File dbFile) {
-                Log.i(TAG, "Database download completed: " + dbFile.getAbsolutePath());
-                // Try to load data after download
-                getPlaylistData(callback);
-            }
-
-            @Override
-            public void onDownloadFailed(String error) {
-                Log.e(TAG, "Database download failed: " + error);
-                callback.onError("Download failed: " + error);
-            }
-
-            @Override
-            public void onUpdateAvailable() {
-                Log.i(TAG, "Update available");
-            }
-        });
+        callback.onError("Download disabled: using bundled assets database");
     }
 
     /**
