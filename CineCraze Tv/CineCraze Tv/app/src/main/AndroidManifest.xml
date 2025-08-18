@@ -43,23 +43,7 @@
             </intent-filter>
         </activity>
         <activity
-            android:name=".ui.PlaylistDownloadActivityFlexible"
-            android:exported="true"
-            android:theme="@style/Theme.CineCraze.NoActionBar" />
-        <activity
-            android:name=".ui.PlaylistDownloadActivity"
-            android:exported="false"
-            android:theme="@style/Theme.CineCraze.NoActionBar" />
-        <activity
-            android:name=".ui.DatabaseInfoActivity"
-            android:exported="false"
-            android:theme="@style/Theme.CineCraze.NoActionBar" />
-        <activity
-            android:name=".ui.DebugMenuActivity"
-            android:exported="true"
-            android:theme="@style/Theme.CineCraze.NoActionBar" />
-        <activity
-            android:name=".ui.StartupActivity"
+            android:name=".FragmentMainActivity"
             android:exported="true"
             android:theme="@style/Theme.CineCraze.NoActionBar">
             <intent-filter>
@@ -67,10 +51,6 @@
                 <category android:name="android.intent.category.LAUNCHER" />
             </intent-filter>
         </activity>
-        <activity
-            android:name=".FragmentMainActivity"
-            android:exported="true"
-            android:theme="@style/Theme.CineCraze.NoActionBar" />
         <activity
             android:name=".DetailsActivity"
             android:configChanges="keyboard|keyboardHidden|orientation|screenSize|screenLayout|smallestScreenSize|uiMode"
