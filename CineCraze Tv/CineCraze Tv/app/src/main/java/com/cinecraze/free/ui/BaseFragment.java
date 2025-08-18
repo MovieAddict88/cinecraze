@@ -108,17 +108,10 @@ public abstract class BaseFragment extends Fragment {
                 public void onScrolled(@NonNull RecyclerView recyclerView, int dx, int dy) {
                     super.onScrolled(recyclerView, dx, dy);
 
-                    // Check if user has scrolled to bottom and there are 20+ items
-                    if (!recyclerView.canScrollVertically(1) && totalCount > 20) {
-                        // User has scrolled to bottom and there are more than 20 items
-                        if (floatingPaginationLayout != null) {
-                            floatingPaginationLayout.setVisibility(View.VISIBLE);
-                        }
-                    } else {
-                        // Hide pagination when not at bottom
-                        if (floatingPaginationLayout != null) {
-                            floatingPaginationLayout.setVisibility(View.GONE);
-                        }
+                    // Show pagination controls when there are previous or next pages
+                    if (floatingPaginationLayout != null) {
+                        boolean shouldShow = (currentPage > 0) || hasMorePages;
+                        floatingPaginationLayout.setVisibility(shouldShow ? View.VISIBLE : View.GONE);
                     }
 
                     // Hide/show bottom navigation
@@ -549,13 +542,19 @@ public abstract class BaseFragment extends Fragment {
         // Only update button states, not visibility (visibility is controlled by scroll listener)
         if (btnPreviousPage != null && btnNextPage != null) {
             boolean canGoPrevious = currentPage > 0 && !isLoading;
-            boolean canGoNext = hasMorePages && !isLoading && ((currentPage + 1) * pageSize < totalCount);
+            boolean canGoNext = hasMorePages && !isLoading;
             
             btnPreviousPage.setEnabled(canGoPrevious);
             btnPreviousPage.setAlpha(canGoPrevious ? 1.0f : 0.3f);
             
             btnNextPage.setEnabled(canGoNext);
             btnNextPage.setAlpha(canGoNext ? 1.0f : 0.3f);
+        }
+
+        // Ensure visibility reflects pagination state
+        if (floatingPaginationLayout != null) {
+            boolean shouldShow = (currentPage > 0) || hasMorePages;
+            floatingPaginationLayout.setVisibility(shouldShow ? View.VISIBLE : View.GONE);
         }
     }
     
