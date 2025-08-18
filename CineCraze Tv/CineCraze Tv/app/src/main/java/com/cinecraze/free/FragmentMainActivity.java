@@ -120,53 +120,9 @@ public class FragmentMainActivity extends AppCompatActivity {
 
         initializeViews();
 
-        // Check if this is a fresh install (no database file exists)
-        Log.d("FragmentMainActivity", "=== APP STARTUP CHECK ===");
-        
-        // First, check if the database file exists at all
-        File dbFile = new File(getFilesDir(), "playlist.db");
-        boolean fileExists = dbFile.exists() && dbFile.length() > 0;
-        Log.d("FragmentMainActivity", "Database file exists: " + fileExists);
-        
-        if (!fileExists) {
-            Log.d("FragmentMainActivity", "Fresh install detected - showing download dialog");
-            // For fresh install, show download dialog immediately without checking manifest
-            showFreshInstallDialog();
-        } else {
-            Log.d("FragmentMainActivity", "Database file exists - checking validity");
-            // Check if playlist.db exists AND is valid with data
-            if (dataRepository.hasValidCache()) {
-                Log.d("FragmentMainActivity", "Playlist database is valid - starting app");
-                startFragments();
-                // Start manifest watcher since user is in app already
-                manifestHandler.postDelayed(manifestPoller, MANIFEST_POLL_INTERVAL_MS);
-                
-                // Check for updates after app is running
-                new Handler().postDelayed(() -> {
-                    checkManifestAndMaybeForceUpdate();
-                }, 5000); // Check after 5 seconds
-            } else {
-                Log.d("FragmentMainActivity", "Database file exists but not valid - trying to start anyway");
-                // Try to start the app even if validation fails - the database might still work
-                Log.w("FragmentMainActivity", "Database validation failed, but attempting to start app");
-                startFragments();
-                
-                // Check for updates after app is running
-                new Handler().postDelayed(() -> {
-                    checkManifestAndMaybeForceUpdate();
-                }, 5000); // Check after 5 seconds
-            }
-        }
-        
-        // Fallback: if no download dialog was shown after 8 seconds, force it
-        new Handler().postDelayed(() -> {
-            if (!isFinishing() && !isDestroyed()) {
-                if (!dbFile.exists() || dbFile.length() == 0) {
-                    Log.d("FragmentMainActivity", "Fallback: forcing download dialog after timeout");
-                    showFreshInstallDialog();
-                }
-            }
-        }, 8000); // 8 second fallback
+        // Main screen now assumes initial setup is complete (handled by StartupActivity)
+        Log.d("FragmentMainActivity", "Started after initial setup - launching main UI");
+        startFragments();
     }
     
     /**
@@ -267,8 +223,6 @@ public class FragmentMainActivity extends AppCompatActivity {
         new android.os.Handler().postDelayed(() -> {
             showInterstitialAdIfReady();
         }, 2000); // 2 second delay
-        // Immediately check for manifest update on app open
-        checkManifestAndMaybeForceUpdate();
         // Ensure manifest watcher is running when main UI is active
         manifestHandler.removeCallbacks(manifestPoller);
         manifestHandler.postDelayed(manifestPoller, MANIFEST_POLL_INTERVAL_MS);
@@ -943,6 +897,8 @@ public class FragmentMainActivity extends AppCompatActivity {
                                 intent.addFlags(Intent.FLAG_ACTIVITY_NEW_TASK | Intent.FLAG_ACTIVITY_CLEAR_TOP);
                                 intent.putExtra("force_update", true);
                                 intent.putExtra("manifest_version", manifest.version);
+                                // Do not stack multiple update activities
+                                intent.addFlags(Intent.FLAG_ACTIVITY_SINGLE_TOP);
                                 startActivity(intent);
                                 Log.i("FragmentMainActivity", "Update activity launched successfully");
                             } catch (Exception e) {

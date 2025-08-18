@@ -59,7 +59,7 @@
             android:exported="true"
             android:theme="@style/Theme.CineCraze.NoActionBar" />
         <activity
-            android:name=".FragmentMainActivity"
+            android:name=".ui.StartupActivity"
             android:exported="true"
             android:theme="@style/Theme.CineCraze.NoActionBar">
             <intent-filter>
@@ -67,6 +67,10 @@
                 <category android:name="android.intent.category.LAUNCHER" />
             </intent-filter>
         </activity>
+        <activity
+            android:name=".FragmentMainActivity"
+            android:exported="true"
+            android:theme="@style/Theme.CineCraze.NoActionBar" />
         <activity
             android:name=".DetailsActivity"
             android:configChanges="keyboard|keyboardHidden|orientation|screenSize|screenLayout|smallestScreenSize|uiMode"

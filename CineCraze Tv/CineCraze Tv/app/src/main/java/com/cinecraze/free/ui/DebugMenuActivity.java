@@ -60,8 +60,8 @@ public class DebugMenuActivity extends AppCompatActivity {
         scrollView.addView(container);
         setContentView(scrollView);
         
-        // Get reference to main activity
-        mainActivity = (FragmentMainActivity) getApplicationContext();
+        // Avoid casting application context to an activity (crash source)
+        mainActivity = null;
     }
     
     private Button createButton(String text, View.OnClickListener listener) {
@@ -78,65 +78,84 @@ public class DebugMenuActivity extends AppCompatActivity {
     
     private void testUpdateDetection() {
         log("Testing update detection...");
-        if (mainActivity != null) {
-            mainActivity.testUpdateDetection();
-        } else {
-            log("Main activity not available");
+        log("Launching update activity for testing...");
+        try {
+            android.content.Intent intent = new android.content.Intent(this, com.cinecraze.free.ui.PlaylistDownloadActivityFlexible.class);
+            intent.putExtra("force_update", true);
+            startActivity(intent);
+        } catch (Exception e) {
+            log("Failed to launch update activity: " + e.getMessage());
         }
     }
     
     private void forceFreshInstall() {
         log("Forcing fresh install experience...");
-        if (mainActivity != null) {
-            mainActivity.forceFreshInstall();
-        } else {
-            log("Main activity not available");
-        }
+        log("Clearing DB and prefs, then restarting startup flow...");
+        clearDbAndPrefs();
+        restartToStartup();
     }
     
     private void clearDatabase() {
         log("Clearing database...");
-        if (mainActivity != null) {
-            mainActivity.forceClearDatabase();
-        } else {
-            log("Main activity not available");
-        }
+        log("Clearing only database, then restarting startup...");
+        clearOnlyDb();
+        restartToStartup();
     }
     
     private void checkDatabaseStatus() {
         log("Checking database status...");
-        if (mainActivity != null) {
-            mainActivity.checkDatabaseStatus();
-        } else {
-            log("Main activity not available");
+        log("Opening DatabaseInfoActivity...");
+        try {
+            startActivity(new android.content.Intent(this, com.cinecraze.free.ui.DatabaseInfoActivity.class));
+        } catch (Exception e) {
+            log("Failed to open database info: " + e.getMessage());
         }
     }
     
     private void resetUpdateVersion() {
         log("Resetting update version...");
-        if (mainActivity != null) {
-            mainActivity.resetUpdateVersion();
-        } else {
-            log("Main activity not available");
-        }
+        log("Resetting update version flag...");
+        android.content.SharedPreferences sp = getSharedPreferences("app_open_update_prefs", MODE_PRIVATE);
+        sp.edit().remove("last_handled_manifest_version").apply();
     }
     
     private void forceUpdateCheck() {
         log("Forcing update check...");
-        if (mainActivity != null) {
-            mainActivity.forceUpdateCheck();
-        } else {
-            log("Main activity not available");
+        log("Triggering manifest check in background from main screen (if visible)...");
+        try {
+            android.content.Intent i = new android.content.Intent(this, com.cinecraze.free.FragmentMainActivity.class);
+            i.putExtra("trigger_manifest_check", true);
+            startActivity(i);
+        } catch (Exception e) {
+            log("Failed to trigger: " + e.getMessage());
         }
     }
     
     private void clearAllPreferences() {
         log("Clearing all preferences...");
-        if (mainActivity != null) {
-            mainActivity.forceFreshUpdateCheck();
-        } else {
-            log("Main activity not available");
-        }
+        log("Clearing all preferences...");
+        getSharedPreferences("app_open_update_prefs", MODE_PRIVATE).edit().clear().apply();
+        getSharedPreferences("playlist_update_prefs", MODE_PRIVATE).edit().clear().apply();
+        log("Done.");
+
+    }
+
+    private void clearDbAndPrefs() {
+        clearOnlyDb();
+        getSharedPreferences("app_open_update_prefs", MODE_PRIVATE).edit().clear().apply();
+        getSharedPreferences("playlist_update_prefs", MODE_PRIVATE).edit().clear().apply();
+    }
+
+    private void clearOnlyDb() {
+        java.io.File dbFile = new java.io.File(getFilesDir(), "playlist.db");
+        if (dbFile.exists()) dbFile.delete();
+    }
+
+    private void restartToStartup() {
+        android.content.Intent intent = new android.content.Intent(this, StartupActivity.class);
+        intent.addFlags(android.content.Intent.FLAG_ACTIVITY_NEW_TASK | android.content.Intent.FLAG_ACTIVITY_CLEAR_TASK);
+        startActivity(intent);
+        finish();
     }
     
     private void refreshLogs() {
