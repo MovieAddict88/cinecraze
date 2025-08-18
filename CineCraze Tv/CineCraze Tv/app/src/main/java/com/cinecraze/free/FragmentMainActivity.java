@@ -274,65 +274,23 @@ public class FragmentMainActivity extends AppCompatActivity {
     }
 
     private void preflightAndPrompt() {
-        Log.d("FragmentMainActivity", "Preflight and prompt - checking manifest for download info");
+        Log.d("FragmentMainActivity", "Fresh install - showing download prompt without update check");
         
-        // Fetch manifest to get size/hash and then prompt user
-        playlistUpdateManager.checkForUpdates(new com.cinecraze.free.utils.EnhancedUpdateManagerFlexible.UpdateCallback() {
-            @Override
-            public void onUpdateCheckStarted() { 
-                Log.d("FragmentMainActivity", "Update check started");
-            }
-
-            @Override
-            public void onUpdateAvailable(com.cinecraze.free.utils.EnhancedUpdateManagerFlexible.ManifestInfo manifestInfo) {
-                Log.d("FragmentMainActivity", "Update available - showing download prompt");
-                initialManifestInfo = manifestInfo;
-                long bytes = -1L;
-                if (manifestInfo != null && manifestInfo.database != null) {
-                    if (manifestInfo.database.sizeBytes > 0) {
-                        bytes = manifestInfo.database.sizeBytes;
-                    } else if (manifestInfo.database.sizeMb > 0) {
-                        bytes = (long) (manifestInfo.database.sizeMb * 1024 * 1024);
-                    }
-                }
-                final long bytesForUi = bytes;
-                runOnUiThread(() -> showDownloadPrompt(bytesForUi));
-            }
-
-            @Override
-            public void onNoUpdateAvailable() {
-                Log.d("FragmentMainActivity", "No update available - but no database exists, forcing download");
-                // Even if no update is available, we need to download the initial database
-                // Create a default manifest info for initial download
-                com.cinecraze.free.utils.EnhancedUpdateManagerFlexible.ManifestInfo defaultManifest = 
-                    new com.cinecraze.free.utils.EnhancedUpdateManagerFlexible.ManifestInfo();
-                defaultManifest.version = "initial";
-                defaultManifest.description = "Initial database download";
-                
-                com.cinecraze.free.utils.EnhancedUpdateManagerFlexible.ManifestInfo.DatabaseInfo dbInfo = 
-                    new com.cinecraze.free.utils.EnhancedUpdateManagerFlexible.ManifestInfo.DatabaseInfo();
-                dbInfo.sizeBytes = 12583912; // Default size from manifest
-                dbInfo.sizeMb = 12;
-                defaultManifest.database = dbInfo;
-                
-                initialManifestInfo = defaultManifest;
-                runOnUiThread(() -> showDownloadPrompt(dbInfo.sizeBytes));
-            }
-
-            @Override
-            public void onUpdateCheckFailed(String error) {
-                Log.e("FragmentMainActivity", "Update check failed: " + error);
-                runOnUiThread(() -> {
-                    android.widget.Toast.makeText(FragmentMainActivity.this, "Failed to check update: " + error, android.widget.Toast.LENGTH_LONG).show();
-                    finish();
-                });
-            }
-
-            @Override public void onUpdateDownloadStarted() { }
-            @Override public void onUpdateDownloadProgress(int progress) { }
-            @Override public void onUpdateDownloadCompleted() { }
-            @Override public void onUpdateDownloadFailed(String error) { }
-        });
+        // For fresh installs, use a simple approach without triggering the update system
+        // Create a default manifest info for initial download
+        com.cinecraze.free.utils.EnhancedUpdateManagerFlexible.ManifestInfo defaultManifest = 
+            new com.cinecraze.free.utils.EnhancedUpdateManagerFlexible.ManifestInfo();
+        defaultManifest.version = "initial";
+        defaultManifest.description = "Initial database download";
+        
+        com.cinecraze.free.utils.EnhancedUpdateManagerFlexible.ManifestInfo.DatabaseInfo dbInfo = 
+            new com.cinecraze.free.utils.EnhancedUpdateManagerFlexible.ManifestInfo.DatabaseInfo();
+        dbInfo.sizeBytes = 12583912; // Default size from manifest
+        dbInfo.sizeMb = 12;
+        defaultManifest.database = dbInfo;
+        
+        initialManifestInfo = defaultManifest;
+        showDownloadPrompt(dbInfo.sizeBytes);
     }
 
     private void showDownloadPrompt(long contentLengthBytes) {
@@ -413,34 +371,42 @@ public class FragmentMainActivity extends AppCompatActivity {
                     
                     Log.d("FragmentMainActivity", "Download completed - checking database validity");
                     
-                    // Force refresh the DataRepository to recognize the new database
-                    dataRepository = new DataRepository(FragmentMainActivity.this);
-                    
-                    // Check if database is now valid
-                    boolean isValid = dataRepository.hasValidCache();
-                    Log.d("FragmentMainActivity", "Database validity after download: " + isValid);
-                    
-                    if (isValid) {
-                        Log.d("FragmentMainActivity", "Database is valid - starting app");
-                        // Mark this manifest version as handled so app-open update won't immediately trigger
-                        try {
-                            if (initialManifestInfo != null && initialManifestInfo.version != null && !initialManifestInfo.version.isEmpty()) {
-                                SharedPreferences sp = getSharedPreferences(PREFS_APP_UPDATE, MODE_PRIVATE);
-                                sp.edit().putString(KEY_LAST_HANDLED_MANIFEST_VERSION, initialManifestInfo.version).apply();
-                                Log.d("FragmentMainActivity", "Set initial manifest version: " + initialManifestInfo.version);
-                            }
-                        } catch (Exception ignored) {}
+                    // Add a small delay to ensure file system is updated
+                    new Handler().postDelayed(() -> {
+                        // Force refresh the DataRepository to recognize the new database
+                        dataRepository = new DataRepository(FragmentMainActivity.this);
                         
-                        // For fresh installs, start fragments without checking for updates
-                        // The update check will happen on next app open
-                        startFragmentsWithoutUpdateCheck();
-                    } else {
-                        Log.e("FragmentMainActivity", "Database still not valid after download");
-                        android.widget.Toast.makeText(FragmentMainActivity.this, 
-                            "Download completed but database validation failed", 
-                            android.widget.Toast.LENGTH_LONG).show();
-                        finish();
-                    }
+                        // Check if database is now valid
+                        boolean isValid = dataRepository.hasValidCache();
+                        Log.d("FragmentMainActivity", "Database validity after download: " + isValid);
+                        
+                        if (isValid) {
+                            Log.d("FragmentMainActivity", "Database is valid - starting app");
+                            // Mark this manifest version as handled so app-open update won't immediately trigger
+                            try {
+                                if (initialManifestInfo != null && initialManifestInfo.version != null && !initialManifestInfo.version.isEmpty()) {
+                                    SharedPreferences sp = getSharedPreferences(PREFS_APP_UPDATE, MODE_PRIVATE);
+                                    sp.edit().putString(KEY_LAST_HANDLED_MANIFEST_VERSION, initialManifestInfo.version).apply();
+                                    Log.d("FragmentMainActivity", "Set initial manifest version: " + initialManifestInfo.version);
+                                }
+                            } catch (Exception ignored) {}
+                            
+                            // For fresh installs, start fragments without checking for updates
+                            // The update check will happen on next app open
+                            startFragmentsWithoutUpdateCheck();
+                            
+                            // Also set a flag to prevent immediate update checks
+                            SharedPreferences sp = getSharedPreferences(PREFS_APP_UPDATE, MODE_PRIVATE);
+                            sp.edit().putBoolean("fresh_install_completed", true).apply();
+                            Log.d("FragmentMainActivity", "Fresh install completed - marked for next app open");
+                        } else {
+                            Log.e("FragmentMainActivity", "Database still not valid after download");
+                            android.widget.Toast.makeText(FragmentMainActivity.this, 
+                                "Download completed but database validation failed", 
+                                android.widget.Toast.LENGTH_LONG).show();
+                            finish();
+                        }
+                    }, 1000); // 1 second delay to ensure file system is updated
                 });
             }
 
@@ -834,6 +800,17 @@ public class FragmentMainActivity extends AppCompatActivity {
     private void checkManifestAndMaybeForceUpdate() {
         try {
             Log.d("FragmentMainActivity", "=== STARTING MANIFEST CHECK ===");
+            
+            // Check if this is a fresh install that just completed
+            SharedPreferences sp = getSharedPreferences(PREFS_APP_UPDATE, MODE_PRIVATE);
+            boolean freshInstallCompleted = sp.getBoolean("fresh_install_completed", false);
+            
+            if (freshInstallCompleted) {
+                Log.d("FragmentMainActivity", "Fresh install just completed - skipping update check");
+                // Clear the flag for next time
+                sp.edit().remove("fresh_install_completed").apply();
+                return;
+            }
             
             // Check if database exists but don't skip the check
             EnhancedUpdateManagerFlexible updateManager = new EnhancedUpdateManagerFlexible(this);
