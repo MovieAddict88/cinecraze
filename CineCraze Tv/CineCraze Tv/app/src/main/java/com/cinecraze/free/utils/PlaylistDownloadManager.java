@@ -2,7 +2,6 @@ package com.cinecraze.free.utils;
 
 import android.content.Context;
 import android.content.SharedPreferences;
-import android.os.AsyncTask;
 import android.util.Log;
 
 import java.io.File;
@@ -26,9 +25,9 @@ public class PlaylistDownloadManager {
     private static final String KEY_DB_VERSION = "db_version";
     private static final String KEY_DOWNLOAD_URL = "download_url";
     
-    // GitHub URLs
-    private static final String GITHUB_JSON_URL = "https://raw.githubusercontent.com/MovieAddict88/Movie-Source/main/manifest.json";
-    private static final String GITHUB_DB_URL = "https://raw.githubusercontent.com/MovieAddict88/Movie-Source/main/playlist.db";
+    // Remote download disabled in new plan
+    private static final String GITHUB_JSON_URL = "";
+    private static final String GITHUB_DB_URL = "";
     
     // Local file names
     private static final String LOCAL_DB_NAME = "playlist.db";
@@ -100,128 +99,13 @@ public class PlaylistDownloadManager {
      * Download database from GitHub
      */
     public void downloadDatabase(DownloadCallback callback) {
-        this.callback = callback;
-        new DownloadDatabaseTask().execute();
+        if (callback != null) callback.onDownloadFailed("Download disabled (using bundled assets DB)");
     }
     
     /**
      * Download database in background
      */
-    private class DownloadDatabaseTask extends AsyncTask<Void, Integer, Boolean> {
-        private String errorMessage = "";
-        
-        @Override
-        protected void onPreExecute() {
-            if (callback != null) {
-                callback.onDownloadStarted();
-            }
-        }
-        
-        @Override
-        protected Boolean doInBackground(Void... params) {
-            HttpURLConnection connection = null;
-            InputStream inputStream = null;
-            FileOutputStream outputStream = null;
-            
-            try {
-                // Create temp file
-                File tempFile = new File(context.getFilesDir(), TEMP_DB_NAME);
-                File localFile = getLocalDatabaseFile();
-                
-                // Download from GitHub
-                URL url = new URL(GITHUB_DB_URL);
-                connection = (HttpURLConnection) url.openConnection();
-                connection.setRequestMethod("GET");
-                connection.setConnectTimeout(30000);
-                connection.setReadTimeout(30000);
-                connection.setRequestProperty("User-Agent", "CineCraze-Android-App");
-                
-                int responseCode = connection.getResponseCode();
-                if (responseCode != HttpURLConnection.HTTP_OK) {
-                    errorMessage = "HTTP Error: " + responseCode;
-                    return false;
-                }
-                
-                int fileLength = connection.getContentLength();
-                inputStream = connection.getInputStream();
-                outputStream = new FileOutputStream(tempFile);
-                
-                byte[] buffer = new byte[8192];
-                int bytesRead;
-                int totalBytesRead = 0;
-                
-                while ((bytesRead = inputStream.read(buffer)) != -1) {
-                    outputStream.write(buffer, 0, bytesRead);
-                    totalBytesRead += bytesRead;
-                    
-                    if (fileLength > 0) {
-                        int progress = (int) ((totalBytesRead * 100) / fileLength);
-                        publishProgress(progress);
-                    }
-                }
-                
-                outputStream.flush();
-                
-                // Verify file size
-                if (tempFile.length() == 0) {
-                    errorMessage = "Downloaded file is empty";
-                    return false;
-                }
-                
-                // Replace existing file
-                if (localFile.exists()) {
-                    localFile.delete();
-                }
-                
-                if (!tempFile.renameTo(localFile)) {
-                    errorMessage = "Failed to save database file";
-                    return false;
-                }
-                
-                // Update preferences
-                SimpleDateFormat sdf = new SimpleDateFormat("yyyy-MM-dd HH:mm:ss", Locale.getDefault());
-                String currentTime = sdf.format(new Date());
-                prefs.edit()
-                    .putString(KEY_LAST_UPDATE, currentTime)
-                    .putString(KEY_DOWNLOAD_URL, GITHUB_DB_URL)
-                    .apply();
-                
-                Log.i(TAG, "Database downloaded successfully: " + localFile.getAbsolutePath());
-                return true;
-                
-            } catch (Exception e) {
-                errorMessage = "Download failed: " + e.getMessage();
-                Log.e(TAG, "Download error", e);
-                return false;
-            } finally {
-                try {
-                    if (inputStream != null) inputStream.close();
-                    if (outputStream != null) outputStream.close();
-                    if (connection != null) connection.disconnect();
-                } catch (IOException e) {
-                    Log.e(TAG, "Error closing streams", e);
-                }
-            }
-        }
-        
-        @Override
-        protected void onProgressUpdate(Integer... values) {
-            if (callback != null && values.length > 0) {
-                callback.onDownloadProgress(values[0]);
-            }
-        }
-        
-        @Override
-        protected void onPostExecute(Boolean success) {
-            if (callback != null) {
-                if (success) {
-                    callback.onDownloadCompleted(getLocalDatabaseFile());
-                } else {
-                    callback.onDownloadFailed(errorMessage);
-                }
-            }
-        }
-    }
+    // Background downloader removed
     
     /**
      * Delete local database
