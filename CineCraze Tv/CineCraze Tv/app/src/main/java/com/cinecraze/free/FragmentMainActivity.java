@@ -868,8 +868,9 @@ public class FragmentMainActivity extends AppCompatActivity {
                     
                     Log.d("FragmentMainActivity", "Remote manifest version: " + manifest.version);
                     
-                    SharedPreferences sp = getSharedPreferences(PREFS_APP_UPDATE, MODE_PRIVATE);
-                    String lastHandled = sp.getString(KEY_LAST_HANDLED_MANIFEST_VERSION, "");
+                    // Get the last handled version from preferences
+                    SharedPreferences threadSp = getSharedPreferences(PREFS_APP_UPDATE, MODE_PRIVATE);
+                    String lastHandled = threadSp.getString(KEY_LAST_HANDLED_MANIFEST_VERSION, "");
                     
                     Log.d("FragmentMainActivity", "Last handled version: " + lastHandled);
                     Log.d("FragmentMainActivity", "Version comparison: '" + lastHandled + "' vs '" + manifest.version + "'");
@@ -882,7 +883,7 @@ public class FragmentMainActivity extends AppCompatActivity {
                         Log.i("FragmentMainActivity", "*** UPDATE DETECTED *** New manifest version: " + manifest.version + " (was: " + lastHandled + ")");
                         
                         // Mark new version as handled to enforce one-time prompt per version
-                        sp.edit().putString(KEY_LAST_HANDLED_MANIFEST_VERSION, manifest.version).apply();
+                        threadSp.edit().putString(KEY_LAST_HANDLED_MANIFEST_VERSION, manifest.version).apply();
                         
                         runOnUiThread(() -> {
                             Log.i("FragmentMainActivity", "*** LAUNCHING UPDATE ACTIVITY *** for version: " + manifest.version);
