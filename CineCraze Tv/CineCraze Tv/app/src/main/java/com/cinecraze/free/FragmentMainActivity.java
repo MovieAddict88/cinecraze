@@ -135,10 +135,8 @@ public class FragmentMainActivity extends AppCompatActivity {
             Log.d("FragmentMainActivity", "Database file exists - checking validity");
             // Check if playlist.db exists AND is valid with data
             if (dataRepository.hasValidCache()) {
-                Log.d("FragmentMainActivity", "Playlist database is valid - starting app");
+                Log.d("FragmentMainActivity", "Playlist database is valid - starting app with update check");
                 startFragments();
-                // Start manifest watcher since user is in app already
-                manifestHandler.postDelayed(manifestPoller, MANIFEST_POLL_INTERVAL_MS);
             } else {
                 Log.d("FragmentMainActivity", "Database file exists but not valid - showing download dialog");
                 preflightAndPrompt();
@@ -245,18 +243,30 @@ public class FragmentMainActivity extends AppCompatActivity {
             showInterstitialAdIfReady();
         }, 2000); // 2 second delay
         
-        // Only check for manifest updates if this is not a fresh install
-        // For fresh installs, we don't want to show update dialog immediately after download
-        SharedPreferences sp = getSharedPreferences(PREFS_APP_UPDATE, MODE_PRIVATE);
-        String lastHandled = sp.getString(KEY_LAST_HANDLED_MANIFEST_VERSION, "");
+        // Check for manifest updates on app open (for existing installations)
+        checkManifestAndMaybeForceUpdate();
         
-        if (!lastHandled.isEmpty()) {
-            // This is an existing installation, check for updates
-            checkManifestAndMaybeForceUpdate();
-        } else {
-            // This is a fresh install, don't check for updates yet
-            Log.d("FragmentMainActivity", "Fresh install - skipping initial update check");
-        }
+        // Ensure manifest watcher is running when main UI is active
+        manifestHandler.removeCallbacks(manifestPoller);
+        manifestHandler.postDelayed(manifestPoller, MANIFEST_POLL_INTERVAL_MS);
+    }
+
+    private void startFragmentsWithoutUpdateCheck() {
+        setupViewPager();
+        setupBottomNavigation();
+        setupSearch();
+        initializeAds();
+        applyInitialTabFromIntent();
+        
+        // Show interstitial ad on app launch (if ready and enabled)
+        // Delay to ensure ads are loaded first
+        new android.os.Handler().postDelayed(() -> {
+            showInterstitialAdIfReady();
+        }, 2000); // 2 second delay
+        
+        // For fresh installs, don't check for updates immediately
+        // The update check will happen on next app open
+        Log.d("FragmentMainActivity", "Fresh install completed - skipping update check");
         
         // Ensure manifest watcher is running when main UI is active
         manifestHandler.removeCallbacks(manifestPoller);
@@ -417,10 +427,13 @@ public class FragmentMainActivity extends AppCompatActivity {
                             if (initialManifestInfo != null && initialManifestInfo.version != null && !initialManifestInfo.version.isEmpty()) {
                                 SharedPreferences sp = getSharedPreferences(PREFS_APP_UPDATE, MODE_PRIVATE);
                                 sp.edit().putString(KEY_LAST_HANDLED_MANIFEST_VERSION, initialManifestInfo.version).apply();
+                                Log.d("FragmentMainActivity", "Set initial manifest version: " + initialManifestInfo.version);
                             }
                         } catch (Exception ignored) {}
                         
-                        startFragments();
+                        // For fresh installs, start fragments without checking for updates
+                        // The update check will happen on next app open
+                        startFragmentsWithoutUpdateCheck();
                     } else {
                         Log.e("FragmentMainActivity", "Database still not valid after download");
                         android.widget.Toast.makeText(FragmentMainActivity.this, 
