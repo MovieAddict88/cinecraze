@@ -133,7 +133,16 @@ public class DataRepository {
      * Force download the playlist database
      */
     public void forceDownloadDatabase(DataCallback callback) {
-        callback.onError("Download disabled: using bundled assets database");
+        Log.i(TAG, "Remote download disabled; attempting to use bundled assets database");
+        // Try to initialize using bundled assets if not already available
+        boolean initialized = playlistManager.initializeDatabase();
+        if (initialized) {
+            Log.d(TAG, "Bundled assets database initialized; proceeding");
+            callback.onSuccess(new ArrayList<>());
+        } else {
+            Log.e(TAG, "Failed to initialize bundled assets database");
+            callback.onError("No playlist database available");
+        }
     }
 
     /**

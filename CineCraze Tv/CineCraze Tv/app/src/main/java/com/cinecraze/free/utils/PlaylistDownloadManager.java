@@ -139,16 +139,41 @@ public class PlaylistDownloadManager {
      */
     public boolean isDatabaseCorrupted() {
         File dbFile = getLocalDatabaseFile();
+        // If file does not exist yet, do not mark as corrupted. The manager will
+        // attempt to copy a valid database from bundled assets during initialization.
         if (!dbFile.exists()) {
-            return true;
+            return false;
         }
-        
-        // Basic check: file should be at least 16KB (allow small bundled DBs)
-        if (dbFile.length() < 16 * 1024) {
+
+        // Validate the SQLite header. A valid SQLite database starts with:
+        // "SQLite format 3\0" (16 bytes)
+        java.io.FileInputStream inputStream = null;
+        try {
+            inputStream = new java.io.FileInputStream(dbFile);
+            byte[] header = new byte[16];
+            int read = inputStream.read(header);
+            if (read < 16) {
+                // Too small to be a valid SQLite database
+                return true;
+            }
+
+            // Compare first 15 characters to "SQLite format 3"
+            char[] expected = "SQLite format 3".toCharArray();
+            for (int i = 0; i < expected.length; i++) {
+                if ((char) header[i] != expected[i]) {
+                    return true;
+                }
+            }
+
+            // Header matches; consider it not corrupted regardless of file size
+            return false;
+        } catch (Exception e) {
+            Log.e(TAG, "Error reading database header for corruption check", e);
             return true;
+        } finally {
+            if (inputStream != null) {
+                try { inputStream.close(); } catch (Exception ignored) {}
+            }
         }
-        
-        // TODO: Add more sophisticated corruption checks
-        return false;
     }
 }
