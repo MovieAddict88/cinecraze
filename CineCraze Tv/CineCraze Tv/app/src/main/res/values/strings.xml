@@ -11,4 +11,5 @@
     <string name="play">Play</string>
     <string name="resume_time">Resume (%1$d:%2$02d)</string>
     <string name="results">Results</string>
+    <string name="appbar_scrolling_view_behavior">com.google.android.material.appbar.AppBarLayout$ScrollingViewBehavior</string>
 </resources>

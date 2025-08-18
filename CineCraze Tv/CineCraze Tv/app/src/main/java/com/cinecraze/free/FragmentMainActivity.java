@@ -130,6 +130,7 @@ public class FragmentMainActivity extends AppCompatActivity {
         
         if (!fileExists) {
             Log.d("FragmentMainActivity", "Fresh install detected - showing download dialog");
+            // For fresh install, show download dialog immediately without checking manifest
             preflightAndPrompt();
         } else {
             Log.d("FragmentMainActivity", "Database file exists - checking validity");
@@ -139,27 +140,26 @@ public class FragmentMainActivity extends AppCompatActivity {
                 startFragments();
                 // Start manifest watcher since user is in app already
                 manifestHandler.postDelayed(manifestPoller, MANIFEST_POLL_INTERVAL_MS);
+                
+                // Check for updates after app is running
+                new Handler().postDelayed(() -> {
+                    checkManifestAndMaybeForceUpdate();
+                }, 5000); // Check after 5 seconds
             } else {
                 Log.d("FragmentMainActivity", "Database file exists but not valid - showing download dialog");
                 preflightAndPrompt();
             }
         }
         
-        // Also check for manifest updates on startup
-        new Handler().postDelayed(() -> {
-            checkManifestAndMaybeForceUpdate();
-        }, 2000); // Check after 2 seconds
-        
-        // Fallback: if no download dialog was shown after 5 seconds, force it
+        // Fallback: if no download dialog was shown after 8 seconds, force it
         new Handler().postDelayed(() -> {
             if (!isFinishing() && !isDestroyed()) {
-                // Reuse the existing dbFile variable from the outer scope
                 if (!dbFile.exists() || dbFile.length() == 0) {
                     Log.d("FragmentMainActivity", "Fallback: forcing download dialog after timeout");
                     preflightAndPrompt();
                 }
             }
-        }, 5000); // 5 second fallback
+        }, 8000); // 8 second fallback
     }
     
     /**
