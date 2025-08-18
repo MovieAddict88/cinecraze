@@ -6,6 +6,7 @@ import android.util.Log;
 import com.cinecraze.free.database.CineCrazeDatabase;
 import com.cinecraze.free.database.DatabaseUtils;
 import com.cinecraze.free.database.PlaylistDatabaseManager;
+import com.cinecraze.free.utils.PlaylistDownloadManager;
 import com.cinecraze.free.database.entities.CacheMetadataEntity;
 import com.cinecraze.free.database.entities.EntryEntity;
 import com.cinecraze.free.models.Entry;
@@ -23,6 +24,7 @@ public class DataRepository {
 
     private CineCrazeDatabase database;
     private PlaylistDatabaseManager playlistManager;
+    private PlaylistDownloadManager downloadManager;
     private Context context;
 
     public interface DataCallback {
@@ -39,6 +41,7 @@ public class DataRepository {
         this.context = context.getApplicationContext();
         this.database = CineCrazeDatabase.getInstance(context);
         this.playlistManager = new PlaylistDatabaseManager(context);
+        this.downloadManager = new PlaylistDownloadManager(context);
     }
 
     /**
@@ -47,13 +50,19 @@ public class DataRepository {
     public boolean hasValidCache() {
         try {
             // Check if playlist.db exists and is valid
-            if (!playlistManager.isDatabaseExists()) {
+            if (!downloadManager.isDatabaseExists()) {
                 Log.d(TAG, "Playlist database does not exist");
                 return false;
             }
             
-            if (playlistManager.isDatabaseCorrupted()) {
+            if (downloadManager.isDatabaseCorrupted()) {
                 Log.d(TAG, "Playlist database is corrupted");
+                return false;
+            }
+            
+            // Initialize the database manager
+            if (!playlistManager.initializeDatabase()) {
+                Log.d(TAG, "Failed to initialize playlist database");
                 return false;
             }
             
