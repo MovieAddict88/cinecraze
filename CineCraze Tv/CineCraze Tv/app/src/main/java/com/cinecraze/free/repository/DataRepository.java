@@ -278,7 +278,10 @@ public class DataRepository {
             
             List<Entry> entries = new ArrayList<>();
             int count = 0;
-            while (cursor.moveToNext() && count < pageSize) {
+            int skipped = 0;
+            while (cursor.moveToNext()) {
+                if (skipped < offset) { skipped++; continue; }
+                if (count >= pageSize) break;
                 Entry entry = cursorToEntry(cursor);
                 if (entry != null) {
                     entries.add(entry);
