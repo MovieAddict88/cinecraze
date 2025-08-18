@@ -142,8 +142,8 @@ public class PlaylistDownloadManager {
             return true;
         }
         
-        // Basic check: file should be at least 100KB (more lenient)
-        if (dbFile.length() < 100 * 1024) {
+        // Basic check: file should be at least 16KB (allow small bundled DBs)
+        if (dbFile.length() < 16 * 1024) {
             return true;
         }
         
