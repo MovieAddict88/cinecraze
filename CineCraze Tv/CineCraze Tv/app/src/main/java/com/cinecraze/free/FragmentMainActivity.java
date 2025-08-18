@@ -46,6 +46,7 @@ import android.os.Looper;
 import com.cinecraze.free.utils.EnhancedUpdateManagerFlexible;
 import android.util.Log;
 import java.io.File;
+import com.cinecraze.free.database.PlaylistDatabaseManager;
 
 /**
  * SWIPE-ENABLED FRAGMENT-BASED IMPLEMENTATION
@@ -119,16 +120,29 @@ public class FragmentMainActivity extends AppCompatActivity {
 
         initializeViews();
 
-        // Preflight: check if playlist.db exists AND is valid with data
-        Log.d("FragmentMainActivity", "Checking if playlist database is valid...");
-        if (dataRepository.hasValidCache()) {
-            Log.d("FragmentMainActivity", "Playlist database is valid - starting app");
-            startFragments();
-            // Start manifest watcher since user is in app already
-            manifestHandler.postDelayed(manifestPoller, MANIFEST_POLL_INTERVAL_MS);
-        } else {
-            Log.d("FragmentMainActivity", "Playlist database not valid - showing download prompt");
+        // Check if this is a fresh install (no database file exists)
+        Log.d("FragmentMainActivity", "=== APP STARTUP CHECK ===");
+        
+        // First, check if the database file exists at all
+        File dbFile = new File(getFilesDir(), "playlist.db");
+        boolean fileExists = dbFile.exists() && dbFile.length() > 0;
+        Log.d("FragmentMainActivity", "Database file exists: " + fileExists);
+        
+        if (!fileExists) {
+            Log.d("FragmentMainActivity", "Fresh install detected - showing download dialog");
             preflightAndPrompt();
+        } else {
+            Log.d("FragmentMainActivity", "Database file exists - checking validity");
+            // Check if playlist.db exists AND is valid with data
+            if (dataRepository.hasValidCache()) {
+                Log.d("FragmentMainActivity", "Playlist database is valid - starting app");
+                startFragments();
+                // Start manifest watcher since user is in app already
+                manifestHandler.postDelayed(manifestPoller, MANIFEST_POLL_INTERVAL_MS);
+            } else {
+                Log.d("FragmentMainActivity", "Database file exists but not valid - showing download dialog");
+                preflightAndPrompt();
+            }
         }
     }
     
@@ -183,16 +197,35 @@ public class FragmentMainActivity extends AppCompatActivity {
             Log.d("FragmentMainActivity", "Direct file check - Size: " + dbFile.length() + " bytes");
         }
         
-        // Show result to user
-        String status = "Database Status:\n" +
+        // Try to manually validate the database
+        String validationResult = "Database Status:\n" +
                        "File exists: " + exists + "\n" +
                        "Valid cache: " + valid + "\n" +
-                       "File path: " + dbFile.getAbsolutePath();
+                       "File path: " + dbFile.getAbsolutePath() + "\n\n";
         
+        if (dbFile.exists()) {
+            try {
+                // Try to open the database and check structure
+                PlaylistDatabaseManager testManager = new PlaylistDatabaseManager(this);
+                boolean initialized = testManager.initializeDatabase();
+                validationResult += "Manual initialization: " + initialized + "\n";
+                
+                if (initialized) {
+                    PlaylistDatabaseManager.DatabaseStats stats = testManager.getDatabaseStats();
+                    validationResult += "Database stats: " + stats.toString() + "\n";
+                }
+                
+                testManager.close();
+            } catch (Exception e) {
+                validationResult += "Manual validation error: " + e.getMessage() + "\n";
+            }
+        }
+        
+        // Show result to user
         runOnUiThread(() -> {
             new AlertDialog.Builder(this)
                 .setTitle("Database Status")
-                .setMessage(status)
+                .setMessage(validationResult)
                 .setPositiveButton("OK", null)
                 .show();
         });
@@ -917,5 +950,43 @@ public class FragmentMainActivity extends AppCompatActivity {
         
         // Force immediate check
         checkManifestAndMaybeForceUpdate();
+    }
+
+    /**
+     * Force clear database and restart - for testing
+     */
+    public void forceClearDatabase() {
+        Log.i("FragmentMainActivity", "=== FORCING DATABASE CLEAR ===");
+        
+        try {
+            // Delete the database file
+            File dbFile = new File(getFilesDir(), "playlist.db");
+            if (dbFile.exists()) {
+                boolean deleted = dbFile.delete();
+                Log.d("FragmentMainActivity", "Database file deleted: " + deleted);
+            }
+            
+            // Clear preferences
+            SharedPreferences sp = getSharedPreferences(PREFS_APP_UPDATE, MODE_PRIVATE);
+            sp.edit().clear().apply();
+            
+            SharedPreferences updatePrefs = getSharedPreferences("playlist_update_prefs", MODE_PRIVATE);
+            updatePrefs.edit().clear().apply();
+            
+            Log.d("FragmentMainActivity", "Preferences cleared");
+            
+            // Show confirmation
+            runOnUiThread(() -> {
+                new AlertDialog.Builder(this)
+                    .setTitle("Database Cleared")
+                    .setMessage("Database and preferences have been cleared. Restart the app to see the download dialog.")
+                    .setPositiveButton("OK", (dialog, which) -> finish())
+                    .setCancelable(false)
+                    .show();
+            });
+            
+        } catch (Exception e) {
+            Log.e("FragmentMainActivity", "Error clearing database", e);
+        }
     }
 }

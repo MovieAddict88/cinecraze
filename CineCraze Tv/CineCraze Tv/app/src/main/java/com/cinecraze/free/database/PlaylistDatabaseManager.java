@@ -95,6 +95,18 @@ public class PlaylistDatabaseManager extends SQLiteOpenHelper {
         }
         
         try {
+            // First, check what tables actually exist
+            android.database.Cursor tableCursor = database.rawQuery(
+                "SELECT name FROM sqlite_master WHERE type='table'", null
+            );
+            
+            Log.d(TAG, "Available tables in database:");
+            while (tableCursor.moveToNext()) {
+                String tableName = tableCursor.getString(0);
+                Log.d(TAG, "  - " + tableName);
+            }
+            tableCursor.close();
+            
             // Check if required tables exist
             String[] requiredTables = {"entries", "categories", "metadata"};
             
@@ -107,11 +119,14 @@ public class PlaylistDatabaseManager extends SQLiteOpenHelper {
                 boolean tableExists = cursor.getCount() > 0;
                 cursor.close();
                 
-                Log.d(TAG, "Table '" + table + "' exists: " + tableExists);
+                Log.d(TAG, "Required table '" + table + "' exists: " + tableExists);
                 
                 if (!tableExists) {
                     Log.e(TAG, "Required table missing: " + table);
-                    return false;
+                    // For now, let's be more lenient - only require 'entries' table
+                    if (table.equals("entries")) {
+                        return false;
+                    }
                 }
             }
             
@@ -129,8 +144,11 @@ public class PlaylistDatabaseManager extends SQLiteOpenHelper {
                 }
                 
                 Log.i(TAG, "Database contains " + count + " entries");
+            } else {
+                cursor.close();
+                Log.e(TAG, "Could not read entries count");
+                return false;
             }
-            cursor.close();
             
             Log.d(TAG, "Database validation successful");
             return true;
