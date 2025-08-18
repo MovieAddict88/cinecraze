@@ -128,7 +128,12 @@ public class FragmentMainActivity extends AppCompatActivity {
 		});
 		pageChangeCallback = new ViewPager2.OnPageChangeCallback() {
 			@Override public void onPageSelected(int position) {
-				// No-op; keep simple
+				try {
+					// Keep bottom navigation in sync with swipe gestures
+					if (bottomNavigationView != null) {
+						bottomNavigationView.setCurrentActiveItem(position);
+					}
+				} catch (Exception ignored) {}
 			}
 		};
 		mainViewPager.registerOnPageChangeCallback(pageChangeCallback);

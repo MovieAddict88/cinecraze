@@ -230,6 +230,30 @@ public class DataRepository {
                 entry.setDuration(duration);
             }
             
+            // Map servers and seasons if present as JSON columns
+            int serversIndex = cursor.getColumnIndex("servers_json");
+            if (serversIndex >= 0) {
+                String serversJson = cursor.getString(serversIndex);
+                if (serversJson != null && !serversJson.isEmpty()) {
+                    try {
+                        java.lang.reflect.Type serverListType = new com.google.gson.reflect.TypeToken<java.util.List<com.cinecraze.free.models.Server>>(){}.getType();
+                        java.util.List<com.cinecraze.free.models.Server> servers = new com.google.gson.Gson().fromJson(serversJson, serverListType);
+                        entry.setServers(servers);
+                    } catch (Exception ignored) {}
+                }
+            }
+            int seasonsIndex = cursor.getColumnIndex("seasons_json");
+            if (seasonsIndex >= 0) {
+                String seasonsJson = cursor.getString(seasonsIndex);
+                if (seasonsJson != null && !seasonsJson.isEmpty()) {
+                    try {
+                        java.lang.reflect.Type seasonListType = new com.google.gson.reflect.TypeToken<java.util.List<com.cinecraze.free.models.Season>>(){}.getType();
+                        java.util.List<com.cinecraze.free.models.Season> seasons = new com.google.gson.Gson().fromJson(seasonsJson, seasonListType);
+                        entry.setSeasons(seasons);
+                    } catch (Exception ignored) {}
+                }
+            }
+            
             return entry;
         } catch (Exception e) {
             Log.e(TAG, "Error converting cursor to entry: " + e.getMessage());

@@ -252,8 +252,29 @@ public class PlaylistDatabaseManager extends SQLiteOpenHelper {
             return null;
         }
         
-        String query = "SELECT * FROM entries WHERE main_category = ? ORDER BY title";
-        return database.rawQuery(query, new String[]{category});
+        // Normalize UI category labels to database categories
+        String lower = category == null ? "" : category.toLowerCase();
+        String query;
+        String[] args;
+        if (lower.equals("movies") || lower.equals("movie") || lower.equals("films") || lower.equals("film")) {
+            query = "SELECT * FROM entries WHERE LOWER(main_category) IN ('movie','movies','film','films') ORDER BY title";
+            args = null;
+        } else if (lower.equals("tv shows") || lower.equals("tv") || lower.equals("series") || lower.equals("tv series")) {
+            query = "SELECT * FROM entries WHERE LOWER(main_category) IN ('tv shows','tv','series','tv series') ORDER BY title";
+            args = null;
+        } else if (lower.equals("live") || lower.equals("live tv") || lower.equals("iptv") || lower.equals("tv live")) {
+            query = "SELECT * FROM entries WHERE LOWER(main_category) LIKE 'live%' OR LOWER(main_category) LIKE '%live tv%' ORDER BY title";
+            args = null;
+        } else if (lower.isEmpty()) {
+            // No category filter
+            query = "SELECT * FROM entries ORDER BY title";
+            args = null;
+        } else {
+            // Fallback: case-insensitive exact match
+            query = "SELECT * FROM entries WHERE LOWER(main_category) = ? ORDER BY title";
+            args = new String[]{ lower };
+        }
+        return args == null ? database.rawQuery(query, null) : database.rawQuery(query, args);
     }
     
     /**
