@@ -197,27 +197,28 @@ public class FragmentMainActivity extends AppCompatActivity {
             Log.d("FragmentMainActivity", "Direct file check - Size: " + dbFile.length() + " bytes");
         }
         
-        // Try to manually validate the database
-        String validationResult = "Database Status:\n" +
-                       "File exists: " + exists + "\n" +
-                       "Valid cache: " + valid + "\n" +
-                       "File path: " + dbFile.getAbsolutePath() + "\n\n";
+        // Build validation result string
+        final StringBuilder validationResult = new StringBuilder();
+        validationResult.append("Database Status:\n")
+                       .append("File exists: ").append(exists).append("\n")
+                       .append("Valid cache: ").append(valid).append("\n")
+                       .append("File path: ").append(dbFile.getAbsolutePath()).append("\n\n");
         
         if (dbFile.exists()) {
             try {
                 // Try to open the database and check structure
                 PlaylistDatabaseManager testManager = new PlaylistDatabaseManager(this);
                 boolean initialized = testManager.initializeDatabase();
-                validationResult += "Manual initialization: " + initialized + "\n";
+                validationResult.append("Manual initialization: ").append(initialized).append("\n");
                 
                 if (initialized) {
                     PlaylistDatabaseManager.DatabaseStats stats = testManager.getDatabaseStats();
-                    validationResult += "Database stats: " + stats.toString() + "\n";
+                    validationResult.append("Database stats: ").append(stats.toString()).append("\n");
                 }
                 
                 testManager.close();
             } catch (Exception e) {
-                validationResult += "Manual validation error: " + e.getMessage() + "\n";
+                validationResult.append("Manual validation error: ").append(e.getMessage()).append("\n");
             }
         }
         
@@ -225,7 +226,7 @@ public class FragmentMainActivity extends AppCompatActivity {
         runOnUiThread(() -> {
             new AlertDialog.Builder(this)
                 .setTitle("Database Status")
-                .setMessage(validationResult)
+                .setMessage(validationResult.toString())
                 .setPositiveButton("OK", null)
                 .show();
         });
