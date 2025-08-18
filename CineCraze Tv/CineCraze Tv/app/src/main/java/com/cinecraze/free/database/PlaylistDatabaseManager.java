@@ -310,6 +310,16 @@ public class PlaylistDatabaseManager extends SQLiteOpenHelper {
         
         return database.rawQuery("SELECT * FROM categories ORDER BY main_category", null);
     }
+
+    /**
+     * Execute a raw query with optional arguments
+     */
+    public android.database.Cursor rawQuery(String sql, String[] selectionArgs) {
+        if (database == null || !database.isOpen()) {
+            return null;
+        }
+        return database.rawQuery(sql, selectionArgs);
+    }
     
     /**
      * Get entry by ID

@@ -483,16 +483,24 @@ public class DataRepository {
                 return new ArrayList<>();
             }
             
-            // Get all entries and extract unique genres
-            List<Entry> entries = getAllCachedEntries();
-            List<String> genres = new ArrayList<>();
-            for (Entry entry : entries) {
-                if (entry.getMainCategory() != null && !entry.getMainCategory().trim().isEmpty() && 
-                    !entry.getMainCategory().equalsIgnoreCase("null") && !genres.contains(entry.getMainCategory())) {
-                    genres.add(entry.getMainCategory().trim());
+            // Extract unique genres from sub_category (not main_category)
+            android.database.Cursor cursor = playlistManager.getAllEntries();
+            if (cursor == null) return new ArrayList<>();
+            java.util.LinkedHashSet<String> genres = new java.util.LinkedHashSet<>();
+            while (cursor.moveToNext()) {
+                int idx = cursor.getColumnIndex("sub_category");
+                if (idx >= 0) {
+                    String sub = cursor.getString(idx);
+                    if (sub != null) {
+                        String value = sub.trim();
+                        if (!value.isEmpty() && !value.equalsIgnoreCase("null")) {
+                            genres.add(value);
+                        }
+                    }
                 }
             }
-            return genres;
+            cursor.close();
+            return new ArrayList<>(genres);
         } catch (Exception e) {
             Log.e(TAG, "Error getting unique genres: " + e.getMessage(), e);
             return new ArrayList<>();
@@ -598,31 +606,35 @@ public class DataRepository {
                 return;
             }
             
-            // For now, just get all entries and filter in memory
-            List<Entry> allEntries = getAllCachedEntries();
-            List<Entry> filteredEntries = new ArrayList<>();
-            
-            for (Entry entry : allEntries) {
-                boolean matchesGenre = genre == null || genre.isEmpty() || 
-                    (entry.getMainCategory() != null && entry.getMainCategory().equals(genre));
-                boolean matchesCountry = country == null || country.isEmpty(); // Country not available in playlist.db
-                boolean matchesYear = year == null || year.isEmpty() || 
-                    (entry.getYearString() != null && entry.getYearString().equals(year));
-                
-                if (matchesGenre && matchesCountry && matchesYear) {
-                    filteredEntries.add(entry);
-                }
-            }
-            
+            // Use SQL-side filtering via PlaylistDatabaseManager for efficiency
+            java.util.List<Entry> filteredEntries = new java.util.ArrayList<>();
             int offset = page * pageSize;
-            int totalCount = filteredEntries.size();
-            int endIndex = Math.min(offset + pageSize, totalCount);
-            int startIndex = Math.min(offset, totalCount);
-            
-            List<Entry> pageEntries = filteredEntries.subList(startIndex, endIndex);
-            boolean hasMorePages = (offset + pageSize) < totalCount;
-            
-            callback.onSuccess(pageEntries, hasMorePages, totalCount);
+            android.database.Cursor cursor;
+            if ((genre == null || genre.isEmpty()) && (country == null || country.isEmpty()) && (year == null || year.isEmpty())) {
+                cursor = playlistManager.getRecentEntries(offset + pageSize);
+            } else {
+                // Fallback: simple where clauses built dynamically (case-sensitive match on stored strings)
+                StringBuilder sql = new StringBuilder("SELECT * FROM entries WHERE 1=1");
+                java.util.List<String> args = new java.util.ArrayList<>();
+                if (genre != null && !genre.isEmpty()) { sql.append(" AND sub_category = ?"); args.add(genre); }
+                if (country != null && !country.isEmpty()) { sql.append(" AND country = ?"); args.add(country); }
+                if (year != null && !year.isEmpty()) { sql.append(" AND year = ?"); args.add(year); }
+                sql.append(" ORDER BY title ASC LIMIT ? OFFSET ?");
+                args.add(String.valueOf(pageSize));
+                args.add(String.valueOf(offset));
+                cursor = playlistManager.rawQuery(sql.toString(), args.toArray(new String[0]));
+            }
+            int totalCount = 0;
+            if (cursor != null) {
+                while (cursor.moveToNext()) {
+                    Entry entry = cursorToEntry(cursor);
+                    if (entry != null) filteredEntries.add(entry);
+                    totalCount++;
+                }
+                cursor.close();
+            }
+            boolean hasMorePages = filteredEntries.size() == pageSize;
+            callback.onSuccess(filteredEntries, hasMorePages, totalCount);
         } catch (Exception e) {
             Log.e(TAG, "Error loading filtered data: " + e.getMessage(), e);
             callback.onError("Error loading filtered data: " + e.getMessage());
