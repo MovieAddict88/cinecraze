@@ -108,10 +108,14 @@ public abstract class BaseFragment extends Fragment {
                 public void onScrolled(@NonNull RecyclerView recyclerView, int dx, int dy) {
                     super.onScrolled(recyclerView, dx, dy);
 
-                    // Show pagination controls when there are previous or next pages
+                    // Show pagination controls only when scrolling up; hide when scrolling down
                     if (floatingPaginationLayout != null) {
-                        boolean shouldShow = (currentPage > 0) || hasMorePages;
-                        floatingPaginationLayout.setVisibility(shouldShow ? View.VISIBLE : View.GONE);
+                        if (dy < 0) {
+                            boolean shouldShow = (currentPage > 0) || hasMorePages;
+                            floatingPaginationLayout.setVisibility(shouldShow ? View.VISIBLE : View.GONE);
+                        } else if (dy > 0) {
+                            floatingPaginationLayout.setVisibility(View.GONE);
+                        }
                     }
 
                     // Hide/show bottom navigation without direct activity reference
@@ -442,6 +446,11 @@ public abstract class BaseFragment extends Fragment {
             if (swipeRefreshLayout != null) {
                 swipeRefreshLayout.setRefreshing(false);
             }
+
+            // Keep floating pagination hidden by default; it will appear when user scrolls up
+            if (floatingPaginationLayout != null) {
+                floatingPaginationLayout.setVisibility(View.GONE);
+            }
             
             // Load carousel data if this is the first page and home fragment
             if (currentPage == 0 && carouselAdapter != null && getCategory().isEmpty()) {
@@ -550,12 +559,6 @@ public abstract class BaseFragment extends Fragment {
             
             btnNextPage.setEnabled(canGoNext);
             btnNextPage.setAlpha(canGoNext ? 1.0f : 0.3f);
-        }
-
-        // Ensure visibility reflects pagination state
-        if (floatingPaginationLayout != null) {
-            boolean shouldShow = (currentPage > 0) || hasMorePages;
-            floatingPaginationLayout.setVisibility(shouldShow ? View.VISIBLE : View.GONE);
         }
     }
     
