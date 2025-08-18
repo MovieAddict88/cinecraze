@@ -94,12 +94,15 @@ public class FragmentMainActivity extends AppCompatActivity {
     private static final String KEY_LAST_HANDLED_MANIFEST_VERSION = "last_handled_manifest_version";
     private static final long MANIFEST_POLL_INTERVAL_MS = 1 * 60 * 1000; // 1 minute (reduced from 5 minutes)
     private static final String MANIFEST_URL = "https://raw.githubusercontent.com/MovieAddict88/Movie-Source/main/manifest.json";
+    
+    // Flag to track if we're in fresh install mode
+    private boolean isFreshInstallMode = false;
 
     private final Handler manifestHandler = new Handler(Looper.getMainLooper());
     private final Runnable manifestPoller = new Runnable() {
         @Override
         public void run() {
-            if (!isFinishing() && !isDestroyed()) {
+            if (!isFinishing() && !isDestroyed() && !isFreshInstallMode) {
                 checkManifestAndMaybeForceUpdate();
                 manifestHandler.postDelayed(this, MANIFEST_POLL_INTERVAL_MS);
             }
@@ -130,6 +133,8 @@ public class FragmentMainActivity extends AppCompatActivity {
         
         if (!fileExists) {
             Log.d("FragmentMainActivity", "Fresh install detected - showing download dialog");
+            // Set fresh install mode to prevent update checks
+            isFreshInstallMode = true;
             preflightAndPrompt();
         } else {
             Log.d("FragmentMainActivity", "Database file exists - checking validity");
@@ -268,9 +273,9 @@ public class FragmentMainActivity extends AppCompatActivity {
         // The update check will happen on next app open
         Log.d("FragmentMainActivity", "Fresh install completed - skipping update check");
         
-        // Ensure manifest watcher is running when main UI is active
-        manifestHandler.removeCallbacks(manifestPoller);
-        manifestHandler.postDelayed(manifestPoller, MANIFEST_POLL_INTERVAL_MS);
+        // DO NOT start manifest poller for fresh installs
+        // The poller will start on next app open when checking for updates
+        Log.d("FragmentMainActivity", "Fresh install - manifest poller disabled");
     }
 
     private void preflightAndPrompt() {
