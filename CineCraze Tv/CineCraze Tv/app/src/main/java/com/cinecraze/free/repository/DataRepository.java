@@ -150,15 +150,41 @@ public class DataRepository {
     private Entry cursorToEntry(android.database.Cursor cursor) {
         try {
             Entry entry = new Entry();
-            entry.setId(cursor.getInt(cursor.getColumnIndexOrThrow("id")));
+            
+            // Set basic fields using correct column names
             entry.setTitle(cursor.getString(cursor.getColumnIndexOrThrow("title")));
             entry.setDescription(cursor.getString(cursor.getColumnIndexOrThrow("description")));
-            entry.setImageUrl(cursor.getString(cursor.getColumnIndexOrThrow("image_url")));
-            entry.setVideoUrl(cursor.getString(cursor.getColumnIndexOrThrow("video_url")));
-            entry.setCategory(cursor.getString(cursor.getColumnIndexOrThrow("main_category")));
+            entry.setMainCategory(cursor.getString(cursor.getColumnIndexOrThrow("main_category")));
             entry.setSubCategory(cursor.getString(cursor.getColumnIndexOrThrow("sub_category")));
-            entry.setYear(cursor.getString(cursor.getColumnIndexOrThrow("year")));
-            entry.setRating(cursor.getDouble(cursor.getColumnIndexOrThrow("rating")));
+            entry.setCountry(cursor.getString(cursor.getColumnIndexOrThrow("country")));
+            
+            // Set image URL (use poster or thumbnail)
+            String poster = cursor.getString(cursor.getColumnIndexOrThrow("poster"));
+            String thumbnail = cursor.getString(cursor.getColumnIndexOrThrow("thumbnail"));
+            if (poster != null && !poster.isEmpty()) {
+                entry.setPoster(poster);
+            } else if (thumbnail != null && !thumbnail.isEmpty()) {
+                entry.setThumbnail(thumbnail);
+            }
+            
+            // Set year
+            String yearStr = cursor.getString(cursor.getColumnIndexOrThrow("year"));
+            if (yearStr != null && !yearStr.isEmpty()) {
+                entry.setYear(yearStr);
+            }
+            
+            // Set rating
+            String ratingStr = cursor.getString(cursor.getColumnIndexOrThrow("rating"));
+            if (ratingStr != null && !ratingStr.isEmpty()) {
+                entry.setRating(ratingStr);
+            }
+            
+            // Set duration
+            String duration = cursor.getString(cursor.getColumnIndexOrThrow("duration"));
+            if (duration != null && !duration.isEmpty()) {
+                entry.setDuration(duration);
+            }
+            
             return entry;
         } catch (Exception e) {
             Log.e(TAG, "Error converting cursor to entry: " + e.getMessage());
@@ -392,9 +418,9 @@ public class DataRepository {
             List<Entry> entries = getAllCachedEntries();
             List<String> genres = new ArrayList<>();
             for (Entry entry : entries) {
-                if (entry.getCategory() != null && !entry.getCategory().trim().isEmpty() && 
-                    !entry.getCategory().equalsIgnoreCase("null") && !genres.contains(entry.getCategory())) {
-                    genres.add(entry.getCategory().trim());
+                if (entry.getMainCategory() != null && !entry.getMainCategory().trim().isEmpty() && 
+                    !entry.getMainCategory().equalsIgnoreCase("null") && !genres.contains(entry.getMainCategory())) {
+                    genres.add(entry.getMainCategory().trim());
                 }
             }
             return genres;
@@ -428,10 +454,11 @@ public class DataRepository {
             List<Entry> entries = getAllCachedEntries();
             List<String> years = new ArrayList<>();
             for (Entry entry : entries) {
-                if (entry.getYear() != null && !entry.getYear().trim().isEmpty() && 
-                    !entry.getYear().equalsIgnoreCase("null") && !entry.getYear().equals("0") && 
-                    !years.contains(entry.getYear())) {
-                    years.add(entry.getYear().trim());
+                String yearStr = entry.getYearString();
+                if (yearStr != null && !yearStr.trim().isEmpty() && 
+                    !yearStr.equalsIgnoreCase("null") && !yearStr.equals("0") && 
+                    !years.contains(yearStr)) {
+                    years.add(yearStr.trim());
                 }
             }
             return years;
@@ -508,10 +535,10 @@ public class DataRepository {
             
             for (Entry entry : allEntries) {
                 boolean matchesGenre = genre == null || genre.isEmpty() || 
-                    (entry.getCategory() != null && entry.getCategory().equals(genre));
+                    (entry.getMainCategory() != null && entry.getMainCategory().equals(genre));
                 boolean matchesCountry = country == null || country.isEmpty(); // Country not available in playlist.db
                 boolean matchesYear = year == null || year.isEmpty() || 
-                    (entry.getYear() != null && entry.getYear().equals(year));
+                    (entry.getYearString() != null && entry.getYearString().equals(year));
                 
                 if (matchesGenre && matchesCountry && matchesYear) {
                     filteredEntries.add(entry);
