@@ -153,7 +153,7 @@ public class FragmentMainActivity extends AppCompatActivity {
         // Fallback: if no download dialog was shown after 5 seconds, force it
         new Handler().postDelayed(() -> {
             if (!isFinishing() && !isDestroyed()) {
-                File dbFile = new File(getFilesDir(), "playlist.db");
+                // Reuse the existing dbFile variable from the outer scope
                 if (!dbFile.exists() || dbFile.length() == 0) {
                     Log.d("FragmentMainActivity", "Fallback: forcing download dialog after timeout");
                     preflightAndPrompt();
@@ -206,11 +206,11 @@ public class FragmentMainActivity extends AppCompatActivity {
         Log.d("FragmentMainActivity", "DataRepository says database is valid: " + valid);
         
         // Check file directly
-        File dbFile = new File(getFilesDir(), "playlist.db");
-        Log.d("FragmentMainActivity", "Direct file check - Path: " + dbFile.getAbsolutePath());
-        Log.d("FragmentMainActivity", "Direct file check - Exists: " + dbFile.exists());
-        if (dbFile.exists()) {
-            Log.d("FragmentMainActivity", "Direct file check - Size: " + dbFile.length() + " bytes");
+        File dbFileCheck = new File(getFilesDir(), "playlist.db");
+        Log.d("FragmentMainActivity", "Direct file check - Path: " + dbFileCheck.getAbsolutePath());
+        Log.d("FragmentMainActivity", "Direct file check - Exists: " + dbFileCheck.exists());
+        if (dbFileCheck.exists()) {
+            Log.d("FragmentMainActivity", "Direct file check - Size: " + dbFileCheck.length() + " bytes");
         }
         
         // Build validation result string
@@ -218,9 +218,9 @@ public class FragmentMainActivity extends AppCompatActivity {
         validationResult.append("Database Status:\n")
                        .append("File exists: ").append(exists).append("\n")
                        .append("Valid cache: ").append(valid).append("\n")
-                       .append("File path: ").append(dbFile.getAbsolutePath()).append("\n\n");
+                       .append("File path: ").append(dbFileCheck.getAbsolutePath()).append("\n\n");
         
-        if (dbFile.exists()) {
+        if (dbFileCheck.exists()) {
             try {
                 // Try to open the database and check structure
                 PlaylistDatabaseManager testManager = new PlaylistDatabaseManager(this);
