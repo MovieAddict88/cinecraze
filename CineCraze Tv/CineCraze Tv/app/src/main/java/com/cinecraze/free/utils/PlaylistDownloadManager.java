@@ -62,7 +62,8 @@ public class PlaylistDownloadManager {
      * Get the local database file
      */
     public File getLocalDatabaseFile() {
-        return new File(context.getFilesDir(), LOCAL_DB_NAME);
+        // Use the standard databases directory so SQLiteOpenHelper can open it
+        return context.getDatabasePath(LOCAL_DB_NAME);
     }
     
     /**

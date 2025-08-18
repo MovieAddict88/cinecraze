@@ -40,7 +40,7 @@ public class PlaylistDatabaseManager extends SQLiteOpenHelper {
         try {
             Log.d(TAG, "=== INITIALIZING PLAYLIST DATABASE ===");
             
-            // Ensure database exists by copying from assets on first run
+            // Ensure database exists by copying from assets on first run into databases dir
             File localDbFile = downloadManager.getLocalDatabaseFile();
             Log.d(TAG, "Local database file path: " + localDbFile.getAbsolutePath());
             Log.d(TAG, "Local database file exists: " + localDbFile.exists());
@@ -94,6 +94,9 @@ public class PlaylistDatabaseManager extends SQLiteOpenHelper {
         java.io.OutputStream out = null;
         try {
             in = am.open("playlist.db", android.content.res.AssetManager.ACCESS_BUFFER);
+            // Ensure parent dirs exist (databases directory)
+            File parent = targetFile.getParentFile();
+            if (parent != null && !parent.exists()) parent.mkdirs();
             out = new java.io.FileOutputStream(targetFile);
             byte[] buffer = new byte[8192];
             int read;
