@@ -118,12 +118,15 @@ public class FragmentMainActivity extends AppCompatActivity {
 
         initializeViews();
 
-        // Preflight: if playlist.db exists, start app; otherwise prompt to download DB first
-        if (playlistUpdateManager.isDatabaseExists()) {
+        // Preflight: check if playlist.db exists AND is valid with data
+        Log.d("FragmentMainActivity", "Checking if playlist database is valid...");
+        if (dataRepository.hasValidCache()) {
+            Log.d("FragmentMainActivity", "Playlist database is valid - starting app");
             startFragments();
             // Start manifest watcher since user is in app already
             manifestHandler.postDelayed(manifestPoller, MANIFEST_POLL_INTERVAL_MS);
         } else {
+            Log.d("FragmentMainActivity", "Playlist database not valid - showing download prompt");
             preflightAndPrompt();
         }
     }
@@ -148,6 +151,14 @@ public class FragmentMainActivity extends AppCompatActivity {
         Log.i("FragmentMainActivity", "Manual update check triggered");
         checkManifestAndMaybeForceUpdate();
     }
+    
+    /**
+     * Force show download dialog - for testing
+     */
+    public void forceShowDownloadDialog() {
+        Log.i("FragmentMainActivity", "Forcing download dialog");
+        preflightAndPrompt();
+    }
 
     private void startFragments() {
         setupViewPager();
@@ -169,13 +180,18 @@ public class FragmentMainActivity extends AppCompatActivity {
     }
 
     private void preflightAndPrompt() {
+        Log.d("FragmentMainActivity", "Preflight and prompt - checking manifest for download info");
+        
         // Fetch manifest to get size/hash and then prompt user
         playlistUpdateManager.checkForUpdates(new com.cinecraze.free.utils.EnhancedUpdateManagerFlexible.UpdateCallback() {
             @Override
-            public void onUpdateCheckStarted() { }
+            public void onUpdateCheckStarted() { 
+                Log.d("FragmentMainActivity", "Update check started");
+            }
 
             @Override
             public void onUpdateAvailable(com.cinecraze.free.utils.EnhancedUpdateManagerFlexible.ManifestInfo manifestInfo) {
+                Log.d("FragmentMainActivity", "Update available - showing download prompt");
                 initialManifestInfo = manifestInfo;
                 long bytes = -1L;
                 if (manifestInfo != null && manifestInfo.database != null) {
@@ -191,12 +207,27 @@ public class FragmentMainActivity extends AppCompatActivity {
 
             @Override
             public void onNoUpdateAvailable() {
-                // Should not happen on first run; proceed just in case
-                runOnUiThread(() -> startFragments());
+                Log.d("FragmentMainActivity", "No update available - but no database exists, forcing download");
+                // Even if no update is available, we need to download the initial database
+                // Create a default manifest info for initial download
+                com.cinecraze.free.utils.EnhancedUpdateManagerFlexible.ManifestInfo defaultManifest = 
+                    new com.cinecraze.free.utils.EnhancedUpdateManagerFlexible.ManifestInfo();
+                defaultManifest.version = "initial";
+                defaultManifest.description = "Initial database download";
+                
+                com.cinecraze.free.utils.EnhancedUpdateManagerFlexible.ManifestInfo.DatabaseInfo dbInfo = 
+                    new com.cinecraze.free.utils.EnhancedUpdateManagerFlexible.ManifestInfo.DatabaseInfo();
+                dbInfo.sizeBytes = 12583912; // Default size from manifest
+                dbInfo.sizeMb = 12;
+                defaultManifest.database = dbInfo;
+                
+                initialManifestInfo = defaultManifest;
+                runOnUiThread(() -> showDownloadPrompt(dbInfo.sizeBytes));
             }
 
             @Override
             public void onUpdateCheckFailed(String error) {
+                Log.e("FragmentMainActivity", "Update check failed: " + error);
                 runOnUiThread(() -> {
                     android.widget.Toast.makeText(FragmentMainActivity.this, "Failed to check update: " + error, android.widget.Toast.LENGTH_LONG).show();
                     finish();
@@ -211,6 +242,8 @@ public class FragmentMainActivity extends AppCompatActivity {
     }
 
     private void showDownloadPrompt(long contentLengthBytes) {
+        Log.d("FragmentMainActivity", "Showing download prompt for " + contentLengthBytes + " bytes");
+        
         String sizeText;
         if (contentLengthBytes > 0) {
             double mb = contentLengthBytes / (1024.0 * 1024.0);
@@ -219,16 +252,24 @@ public class FragmentMainActivity extends AppCompatActivity {
             sizeText = "unknown size";
         }
 
+        Log.d("FragmentMainActivity", "Download prompt size: " + sizeText);
+
         new AlertDialog.Builder(this)
             .setTitle("Download required")
             .setMessage("Initial data needs to be downloaded (" + sizeText + "). Continue?")
-            .setPositiveButton("Download", (dialog, which) -> startInitialDownload(contentLengthBytes))
+            .setPositiveButton("Download", (dialog, which) -> {
+                Log.d("FragmentMainActivity", "User clicked Download - starting download");
+                startInitialDownload(contentLengthBytes);
+            })
             .setNegativeButton("Cancel", (dialog, which) -> {
+                Log.d("FragmentMainActivity", "User clicked Cancel - finishing app");
                 // User canceled; you can finish or keep minimal UI
                 finish();
             })
             .setCancelable(false)
             .show();
+        
+        Log.d("FragmentMainActivity", "Download prompt dialog shown");
     }
 
     private AlertDialog downloadingDialog;
