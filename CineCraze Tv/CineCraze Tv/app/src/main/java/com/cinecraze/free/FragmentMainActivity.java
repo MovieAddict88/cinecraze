@@ -45,6 +45,7 @@ import android.os.Looper;
 
 import com.cinecraze.free.utils.EnhancedUpdateManagerFlexible;
 import android.util.Log;
+import java.io.File;
 
 /**
  * SWIPE-ENABLED FRAGMENT-BASED IMPLEMENTATION
@@ -158,6 +159,43 @@ public class FragmentMainActivity extends AppCompatActivity {
     public void forceShowDownloadDialog() {
         Log.i("FragmentMainActivity", "Forcing download dialog");
         preflightAndPrompt();
+    }
+    
+    /**
+     * Check database status - for debugging
+     */
+    public void checkDatabaseStatus() {
+        Log.i("FragmentMainActivity", "=== CHECKING DATABASE STATUS ===");
+        
+        // Check with PlaylistDownloadManager
+        boolean exists = playlistUpdateManager.isDatabaseExists();
+        Log.d("FragmentMainActivity", "PlaylistUpdateManager says database exists: " + exists);
+        
+        // Check with DataRepository
+        boolean valid = dataRepository.hasValidCache();
+        Log.d("FragmentMainActivity", "DataRepository says database is valid: " + valid);
+        
+        // Check file directly
+        File dbFile = new File(getFilesDir(), "playlist.db");
+        Log.d("FragmentMainActivity", "Direct file check - Path: " + dbFile.getAbsolutePath());
+        Log.d("FragmentMainActivity", "Direct file check - Exists: " + dbFile.exists());
+        if (dbFile.exists()) {
+            Log.d("FragmentMainActivity", "Direct file check - Size: " + dbFile.length() + " bytes");
+        }
+        
+        // Show result to user
+        String status = "Database Status:\n" +
+                       "File exists: " + exists + "\n" +
+                       "Valid cache: " + valid + "\n" +
+                       "File path: " + dbFile.getAbsolutePath();
+        
+        runOnUiThread(() -> {
+            new AlertDialog.Builder(this)
+                .setTitle("Database Status")
+                .setMessage(status)
+                .setPositiveButton("OK", null)
+                .show();
+        });
     }
 
     private void startFragments() {
@@ -316,21 +354,34 @@ public class FragmentMainActivity extends AppCompatActivity {
                     if (downloadingDialog != null && downloadingDialog.isShowing()) {
                         downloadingDialog.dismiss();
                     }
-                    try {
-                        // Import downloaded playlist.db into Room cache before proceeding
-                        PlaylistDbImporter.importIntoRoom(FragmentMainActivity.this);
-                    } catch (Exception e) {
-                        android.util.Log.e("FragmentMainActivity", "Import failed: " + e.getMessage(), e);
-                        android.widget.Toast.makeText(FragmentMainActivity.this, "Import failed: " + e.getMessage(), android.widget.Toast.LENGTH_LONG).show();
+                    
+                    Log.d("FragmentMainActivity", "Download completed - checking database validity");
+                    
+                    // Force refresh the DataRepository to recognize the new database
+                    dataRepository = new DataRepository(FragmentMainActivity.this);
+                    
+                    // Check if database is now valid
+                    boolean isValid = dataRepository.hasValidCache();
+                    Log.d("FragmentMainActivity", "Database validity after download: " + isValid);
+                    
+                    if (isValid) {
+                        Log.d("FragmentMainActivity", "Database is valid - starting app");
+                        // Mark this manifest version as handled so app-open update won't immediately trigger
+                        try {
+                            if (initialManifestInfo != null && initialManifestInfo.version != null && !initialManifestInfo.version.isEmpty()) {
+                                SharedPreferences sp = getSharedPreferences(PREFS_APP_UPDATE, MODE_PRIVATE);
+                                sp.edit().putString(KEY_LAST_HANDLED_MANIFEST_VERSION, initialManifestInfo.version).apply();
+                            }
+                        } catch (Exception ignored) {}
+                        
+                        startFragments();
+                    } else {
+                        Log.e("FragmentMainActivity", "Database still not valid after download");
+                        android.widget.Toast.makeText(FragmentMainActivity.this, 
+                            "Download completed but database validation failed", 
+                            android.widget.Toast.LENGTH_LONG).show();
+                        finish();
                     }
-                    // Mark this manifest version as handled so app-open update won't immediately trigger
-                    try {
-                        if (initialManifestInfo != null && initialManifestInfo.version != null && !initialManifestInfo.version.isEmpty()) {
-                            SharedPreferences sp = getSharedPreferences(PREFS_APP_UPDATE, MODE_PRIVATE);
-                            sp.edit().putString(KEY_LAST_HANDLED_MANIFEST_VERSION, initialManifestInfo.version).apply();
-                        }
-                    } catch (Exception ignored) {}
-                    startFragments();
                 });
             }
 

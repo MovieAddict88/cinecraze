@@ -38,24 +38,38 @@ public class PlaylistDatabaseManager extends SQLiteOpenHelper {
      */
     public boolean initializeDatabase() {
         try {
+            Log.d(TAG, "=== INITIALIZING PLAYLIST DATABASE ===");
+            
             File localDbFile = downloadManager.getLocalDatabaseFile();
+            Log.d(TAG, "Local database file path: " + localDbFile.getAbsolutePath());
+            Log.d(TAG, "Local database file exists: " + localDbFile.exists());
             
             if (!localDbFile.exists()) {
                 Log.w(TAG, "Local database file not found");
                 return false;
             }
             
+            Log.d(TAG, "Local database file size: " + localDbFile.length() + " bytes");
+            
             // Check if database is corrupted
-            if (downloadManager.isDatabaseCorrupted()) {
+            boolean corrupted = downloadManager.isDatabaseCorrupted();
+            Log.d(TAG, "Database corruption check: " + corrupted);
+            
+            if (corrupted) {
                 Log.e(TAG, "Database file is corrupted");
                 return false;
             }
             
             // Open the database
+            Log.d(TAG, "Opening database...");
             database = getWritableDatabase();
+            Log.d(TAG, "Database opened successfully");
             
             // Verify database integrity
-            if (!isDatabaseValid()) {
+            boolean valid = isDatabaseValid();
+            Log.d(TAG, "Database validation result: " + valid);
+            
+            if (!valid) {
                 Log.e(TAG, "Database validation failed");
                 return false;
             }
@@ -73,7 +87,10 @@ public class PlaylistDatabaseManager extends SQLiteOpenHelper {
      * Check if database is valid and has required tables
      */
     private boolean isDatabaseValid() {
+        Log.d(TAG, "=== VALIDATING DATABASE ===");
+        
         if (database == null || !database.isOpen()) {
+            Log.e(TAG, "Database is null or not open");
             return false;
         }
         
@@ -90,6 +107,8 @@ public class PlaylistDatabaseManager extends SQLiteOpenHelper {
                 boolean tableExists = cursor.getCount() > 0;
                 cursor.close();
                 
+                Log.d(TAG, "Table '" + table + "' exists: " + tableExists);
+                
                 if (!tableExists) {
                     Log.e(TAG, "Required table missing: " + table);
                     return false;
@@ -102,6 +121,8 @@ public class PlaylistDatabaseManager extends SQLiteOpenHelper {
                 int count = cursor.getInt(0);
                 cursor.close();
                 
+                Log.d(TAG, "Entries table count: " + count);
+                
                 if (count == 0) {
                     Log.w(TAG, "Entries table is empty");
                     return false;
@@ -111,6 +132,7 @@ public class PlaylistDatabaseManager extends SQLiteOpenHelper {
             }
             cursor.close();
             
+            Log.d(TAG, "Database validation successful");
             return true;
             
         } catch (Exception e) {
