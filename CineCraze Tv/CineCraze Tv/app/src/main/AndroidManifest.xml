@@ -55,6 +55,10 @@
             android:exported="false"
             android:theme="@style/Theme.CineCraze.NoActionBar" />
         <activity
+            android:name=".ui.DebugMenuActivity"
+            android:exported="true"
+            android:theme="@style/Theme.CineCraze.NoActionBar" />
+        <activity
             android:name=".FragmentMainActivity"
             android:exported="true"
             android:theme="@style/Theme.CineCraze.NoActionBar">

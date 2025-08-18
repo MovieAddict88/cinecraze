@@ -107,8 +107,8 @@ public class PlaylistDatabaseManager extends SQLiteOpenHelper {
             }
             tableCursor.close();
             
-            // Check if required tables exist
-            String[] requiredTables = {"entries", "categories", "metadata"};
+            // Check if required tables exist - only require 'entries' table
+            String[] requiredTables = {"entries"};
             
             for (String table : requiredTables) {
                 android.database.Cursor cursor = database.rawQuery(
@@ -123,10 +123,7 @@ public class PlaylistDatabaseManager extends SQLiteOpenHelper {
                 
                 if (!tableExists) {
                     Log.e(TAG, "Required table missing: " + table);
-                    // For now, let's be more lenient - only require 'entries' table
-                    if (table.equals("entries")) {
-                        return false;
-                    }
+                    return false;
                 }
             }
             

@@ -144,6 +144,22 @@ public class FragmentMainActivity extends AppCompatActivity {
                 preflightAndPrompt();
             }
         }
+        
+        // Also check for manifest updates on startup
+        new Handler().postDelayed(() -> {
+            checkManifestAndMaybeForceUpdate();
+        }, 2000); // Check after 2 seconds
+        
+        // Fallback: if no download dialog was shown after 5 seconds, force it
+        new Handler().postDelayed(() -> {
+            if (!isFinishing() && !isDestroyed()) {
+                File dbFile = new File(getFilesDir(), "playlist.db");
+                if (!dbFile.exists() || dbFile.length() == 0) {
+                    Log.d("FragmentMainActivity", "Fallback: forcing download dialog after timeout");
+                    preflightAndPrompt();
+                }
+            }
+        }, 5000); // 5 second fallback
     }
     
     /**
@@ -408,13 +424,17 @@ public class FragmentMainActivity extends AppCompatActivity {
                             }
                         } catch (Exception ignored) {}
                         
+                        android.widget.Toast.makeText(FragmentMainActivity.this, 
+                            "Download completed successfully! Starting app...", 
+                            android.widget.Toast.LENGTH_SHORT).show();
                         startFragments();
                     } else {
-                        Log.e("FragmentMainActivity", "Database still not valid after download");
+                        Log.e("FragmentMainActivity", "Database validation failed after download - trying to start anyway");
+                        // Try to start the app even if validation fails - the database might still work
                         android.widget.Toast.makeText(FragmentMainActivity.this, 
-                            "Download completed but database validation failed", 
-                            android.widget.Toast.LENGTH_LONG).show();
-                        finish();
+                            "Download completed. Starting app...", 
+                            android.widget.Toast.LENGTH_SHORT).show();
+                        startFragments();
                     }
                 });
             }
@@ -491,6 +511,15 @@ public class FragmentMainActivity extends AppCompatActivity {
         searchBar = findViewById(R.id.search_bar);
         floatingSearchIcon = findViewById(R.id.floating_search_icon);
         mainViewPager = findViewById(R.id.main_viewpager);
+        
+        // Set up debug button
+        com.google.android.material.floatingactionbutton.FloatingActionButton debugButton = findViewById(R.id.debug_button);
+        if (debugButton != null) {
+            debugButton.setOnClickListener(v -> {
+                Intent intent = new Intent(this, com.cinecraze.free.ui.DebugMenuActivity.class);
+                startActivity(intent);
+            });
+        }
     }
 
     private void setupViewPager() {
@@ -872,11 +901,8 @@ public class FragmentMainActivity extends AppCompatActivity {
                     Log.d("FragmentMainActivity", "Last handled version: " + lastHandled);
                     Log.d("FragmentMainActivity", "Version comparison: '" + lastHandled + "' vs '" + manifest.version + "'");
                     
-                    // FORCE UPDATE DETECTION FOR TESTING - Remove this after testing
-                    boolean forceUpdate = false; // Set to false for normal operation
-                    
                     // Check if version changed or if we haven't handled any version yet
-                    if (forceUpdate || lastHandled.isEmpty() || !manifest.version.equals(lastHandled)) {
+                    if (lastHandled.isEmpty() || !manifest.version.equals(lastHandled)) {
                         Log.i("FragmentMainActivity", "*** UPDATE DETECTED *** New manifest version: " + manifest.version + " (was: " + lastHandled + ")");
                         
                         // Mark new version as handled to enforce one-time prompt per version
@@ -988,6 +1014,46 @@ public class FragmentMainActivity extends AppCompatActivity {
             
         } catch (Exception e) {
             Log.e("FragmentMainActivity", "Error clearing database", e);
+        }
+    }
+    
+    /**
+     * Force fresh install experience - clears everything and shows download dialog
+     */
+    public void forceFreshInstall() {
+        Log.i("FragmentMainActivity", "=== FORCING FRESH INSTALL EXPERIENCE ===");
+        
+        try {
+            // Delete the database file
+            File dbFile = new File(getFilesDir(), "playlist.db");
+            if (dbFile.exists()) {
+                boolean deleted = dbFile.delete();
+                Log.d("FragmentMainActivity", "Database file deleted: " + deleted);
+            }
+            
+            // Clear all preferences
+            SharedPreferences sp = getSharedPreferences(PREFS_APP_UPDATE, MODE_PRIVATE);
+            sp.edit().clear().apply();
+            
+            SharedPreferences updatePrefs = getSharedPreferences("playlist_update_prefs", MODE_PRIVATE);
+            updatePrefs.edit().clear().apply();
+            
+            Log.d("FragmentMainActivity", "All preferences cleared");
+            
+            // Show download dialog immediately
+            runOnUiThread(() -> {
+                new AlertDialog.Builder(this)
+                    .setTitle("Fresh Install Mode")
+                    .setMessage("Database and preferences have been cleared. Download dialog will appear now.")
+                    .setPositiveButton("OK", (dialog, which) -> {
+                        preflightAndPrompt();
+                    })
+                    .setCancelable(false)
+                    .show();
+            });
+            
+        } catch (Exception e) {
+            Log.e("FragmentMainActivity", "Error forcing fresh install", e);
         }
     }
 }
