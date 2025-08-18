@@ -349,11 +349,14 @@ public class FragmentMainActivity extends AppCompatActivity {
             @Override public void onUpdateCheckFailed(String error) { }
 
             @Override
-            public void onUpdateDownloadStarted() { }
+            public void onUpdateDownloadStarted() { 
+                Log.d("FragmentMainActivity", "=== DOWNLOAD STARTED ===");
+            }
 
             @Override
             public void onUpdateDownloadProgress(int progress) {
                 runOnUiThread(() -> {
+                    Log.d("FragmentMainActivity", "Download progress: " + progress + "%");
                     if (downloadingMessageText != null) {
                         String sizeText;
                         if (estimatedBytes > 0) {
@@ -374,16 +377,46 @@ public class FragmentMainActivity extends AppCompatActivity {
                         downloadingDialog.dismiss();
                     }
                     
+                    Log.d("FragmentMainActivity", "=== DOWNLOAD COMPLETED ===");
                     Log.d("FragmentMainActivity", "Download completed - checking database validity");
                     
                     // Add a small delay to ensure file system is updated
                     new Handler().postDelayed(() -> {
+                        Log.d("FragmentMainActivity", "=== DETAILED DATABASE VALIDATION ===");
+                        
+                        // Check file directly first
+                        File dbFile = new File(getFilesDir(), "playlist.db");
+                        Log.d("FragmentMainActivity", "Database file path: " + dbFile.getAbsolutePath());
+                        Log.d("FragmentMainActivity", "Database file exists: " + dbFile.exists());
+                        if (dbFile.exists()) {
+                            Log.d("FragmentMainActivity", "Database file size: " + dbFile.length() + " bytes");
+                        }
+                        
                         // Force refresh the DataRepository to recognize the new database
                         dataRepository = new DataRepository(FragmentMainActivity.this);
                         
                         // Check if database is now valid
                         boolean isValid = dataRepository.hasValidCache();
-                        Log.d("FragmentMainActivity", "Database validity after download: " + isValid);
+                        Log.d("FragmentMainActivity", "DataRepository.hasValidCache() result: " + isValid);
+                        
+                        // Also check with PlaylistDownloadManager
+                        boolean exists = playlistUpdateManager.isDatabaseExists();
+                        Log.d("FragmentMainActivity", "PlaylistUpdateManager.isDatabaseExists() result: " + exists);
+                        
+                        // Try to manually check database structure
+                        try {
+                            PlaylistDatabaseManager testManager = new PlaylistDatabaseManager(FragmentMainActivity.this);
+                            boolean initialized = testManager.initializeDatabase();
+                            Log.d("FragmentMainActivity", "Manual database initialization: " + initialized);
+                            
+                            if (initialized) {
+                                PlaylistDatabaseManager.DatabaseStats stats = testManager.getDatabaseStats();
+                                Log.d("FragmentMainActivity", "Manual database stats: " + stats.toString());
+                            }
+                            testManager.close();
+                        } catch (Exception e) {
+                            Log.e("FragmentMainActivity", "Manual database check failed", e);
+                        }
                         
                         if (isValid) {
                             Log.d("FragmentMainActivity", "Database is valid - starting app");
