@@ -30,6 +30,8 @@ public class DataRepository {
 
     // Column projection identical to PlaylistDatabaseManager for list/search queries
     private static final String ENTRY_LIST_COLUMNS = "id, title, description, main_category, sub_category, country, poster, thumbnail, rating, duration, year, servers_json";
+    // Full projection including large JSON fields for detail fetches
+    private static final String ENTRY_DETAIL_COLUMNS = "id, title, description, main_category, sub_category, country, poster, thumbnail, rating, duration, year, servers_json, seasons_json, related_json";
 
     public interface DataCallback {
         void onSuccess(List<Entry> entries);
@@ -663,6 +665,43 @@ public class DataRepository {
             return entry;
         } catch (Exception e) {
             Log.e(TAG, "Error finding entry by hash ID: " + e.getMessage(), e);
+            return null;
+        }
+    }
+
+    /**
+     * Load a single full entry by exact title and optional year, including JSON fields
+     */
+    public Entry loadFullEntry(String title, String yearString) {
+        try {
+            if (!hasValidCache()) {
+                return null;
+            }
+            if (title == null || title.trim().isEmpty()) {
+                return null;
+            }
+            StringBuilder sql = new StringBuilder("SELECT " + ENTRY_DETAIL_COLUMNS + " FROM entries WHERE title = ?");
+            java.util.List<String> args = new java.util.ArrayList<>();
+            args.add(title);
+            if (yearString != null && !yearString.trim().isEmpty()) {
+                sql.append(" AND year = ?");
+                args.add(yearString.trim());
+            }
+            sql.append(" ORDER BY rowid DESC LIMIT 1");
+            android.database.Cursor cursor = playlistManager.rawQuery(sql.toString(), args.toArray(new String[0]));
+            if (cursor != null) {
+                try {
+                    if (cursor.moveToFirst()) {
+                        Entry entry = cursorToEntry(cursor);
+                        return entry;
+                    }
+                } finally {
+                    cursor.close();
+                }
+            }
+            return null;
+        } catch (Exception e) {
+            Log.e(TAG, "Error loading full entry by title/year: " + e.getMessage(), e);
             return null;
         }
     }
