@@ -197,7 +197,7 @@ public class DetailsActivity extends AppCompatActivity {
                 (currentEntry.getSeasons() != null && !currentEntry.getSeasons().isEmpty()) ||
                 (currentEntry.getMainCategory() != null && (
                     currentEntry.getMainCategory().toLowerCase().contains("series") ||
-                    currentEntry.getMainCategory().toLowerCase().contains("tv")
+                    (currentEntry.getMainCategory().toLowerCase().contains("tv") && !currentEntry.getMainCategory().toLowerCase().contains("live"))
                 ));
             if (looksLikeSeries) {
                 // For large series, seasons might be loaded asynchronously
@@ -714,7 +714,7 @@ public class DetailsActivity extends AppCompatActivity {
                     try {
                         boolean isSeries = (entry.getMainCategory() != null) && (
                                 entry.getMainCategory().toLowerCase().contains("series") ||
-                                entry.getMainCategory().toLowerCase().contains("tv"));
+                                (entry.getMainCategory().toLowerCase().contains("tv") && !entry.getMainCategory().toLowerCase().contains("live")));
 
                         DataRepository repo = new DataRepository(this);
 
