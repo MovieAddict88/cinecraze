@@ -118,18 +118,27 @@ public class PlaylistDownloadManager {
                     dbDir.mkdirs();
                 }
 
+                // Ensure old DB is removed to avoid any stale reads
+                deleteLocalDatabase();
+
                 File tempFile = new File(dbDir, TEMP_DB_NAME);
                 if (tempFile.exists()) {
                     //noinspection ResultOfMethodCallIgnored
                     tempFile.delete();
                 }
 
-                java.net.URL url = new URL(GITHUB_DB_URL);
+                // Append cache-busting query to avoid CDN/proxy caches serving stale content
+                String cacheBustedUrl = GITHUB_DB_URL + (GITHUB_DB_URL.contains("?") ? "&" : "?") + "t=" + System.currentTimeMillis();
+                java.net.URL url = new URL(cacheBustedUrl);
                 HttpURLConnection connection = (HttpURLConnection) url.openConnection();
                 connection.setConnectTimeout(20000);
                 connection.setReadTimeout(60000);
                 connection.setRequestMethod("GET");
                 connection.setInstanceFollowRedirects(true);
+                connection.setUseCaches(false);
+                connection.addRequestProperty("Cache-Control", "no-cache, no-store, must-revalidate");
+                connection.addRequestProperty("Pragma", "no-cache");
+                connection.addRequestProperty("Expires", "0");
 
                 int responseCode = connection.getResponseCode();
                 if (responseCode / 100 != 2) {

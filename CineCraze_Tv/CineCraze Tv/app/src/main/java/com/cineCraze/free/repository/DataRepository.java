@@ -158,6 +158,11 @@ public class DataRepository {
 
     private void triggerDownload(DataCallback callback) {
         try {
+            // Ensure any cached Room data is cleared so we always read from the freshly downloaded DB
+            try {
+                CineCrazeDatabase.getInstance(context).clearAllTables();
+            } catch (Exception ignored) {}
+
             downloadManager.downloadDatabase(new PlaylistDownloadManager.DownloadCallback() {
                 @Override
                 public void onDownloadStarted() { }
@@ -168,6 +173,9 @@ public class DataRepository {
                 @Override
                 public void onDownloadCompleted(File dbFile) {
                     // After download, initialize database and signal success
+                    try {
+                        CineCrazeDatabase.getInstance(context).clearAllTables();
+                    } catch (Exception ignored) {}
                     boolean initialized = playlistManager.initializeDatabase();
                     if (initialized) {
                         callback.onSuccess(new ArrayList<>());

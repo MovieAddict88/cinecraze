@@ -69,7 +69,12 @@ public class PlaylistDatabaseManager extends SQLiteOpenHelper {
             
             // Open the database
             Log.d(TAG, "Opening database...");
-            database = getWritableDatabase();
+            // Open the database in read-only mode to ensure we are using the exact downloaded file
+            database = SQLiteDatabase.openDatabase(
+                localDbFile.getAbsolutePath(),
+                null,
+                SQLiteDatabase.OPEN_READONLY | SQLiteDatabase.NO_LOCALIZED_COLLATORS
+            );
             Log.d(TAG, "Database opened successfully");
             
             // Verify database integrity
