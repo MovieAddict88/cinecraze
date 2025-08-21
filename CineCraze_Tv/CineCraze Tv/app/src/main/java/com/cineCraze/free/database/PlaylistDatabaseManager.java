@@ -235,29 +235,12 @@ public class PlaylistDatabaseManager extends SQLiteOpenHelper {
             return null;
         }
         
-        // Normalize UI category labels to database categories
-        String lower = category == null ? "" : category.toLowerCase();
-        String query;
-        String[] args;
-        if (lower.equals("movies") || lower.equals("movie") || lower.equals("films") || lower.equals("film")) {
-            query = "SELECT " + ENTRY_LIST_COLUMNS + " FROM entries WHERE LOWER(main_category) IN ('movie','movies','film','films') ORDER BY title";
-            args = null;
-        } else if (lower.equals("tv shows") || lower.equals("tv") || lower.equals("series") || lower.equals("tv series")) {
-            query = "SELECT " + ENTRY_LIST_COLUMNS + " FROM entries WHERE LOWER(main_category) IN ('tv shows','tv','series','tv series') ORDER BY title";
-            args = null;
-        } else if (lower.equals("live") || lower.equals("live tv") || lower.equals("iptv") || lower.equals("tv live")) {
-            query = "SELECT " + ENTRY_LIST_COLUMNS + " FROM entries WHERE LOWER(main_category) LIKE 'live%' OR LOWER(main_category) LIKE '%live tv%' ORDER BY title";
-            args = null;
-        } else if (lower.isEmpty()) {
-            // No category filter
-            query = "SELECT " + ENTRY_LIST_COLUMNS + " FROM entries ORDER BY title";
-            args = null;
-        } else {
-            // Fallback: case-insensitive exact match
-            query = "SELECT " + ENTRY_LIST_COLUMNS + " FROM entries WHERE LOWER(main_category) = ? ORDER BY title";
-            args = new String[]{ lower };
-        }
-        return args == null ? database.rawQuery(query, null) : database.rawQuery(query, args);
+        StringBuilder where = new StringBuilder();
+        java.util.List<String> argList = new java.util.ArrayList<>();
+        buildCategoryWhereClause(category, where, argList);
+        String sql = "SELECT " + ENTRY_LIST_COLUMNS + " FROM entries" + (where.length() > 0 ? " WHERE " + where.toString() : "") + " ORDER BY title";
+        String[] args = argList.isEmpty() ? null : argList.toArray(new String[0]);
+        return database.rawQuery(sql, args);
     }
     
     /**
@@ -281,6 +264,74 @@ public class PlaylistDatabaseManager extends SQLiteOpenHelper {
         }
         
         return database.rawQuery("SELECT " + ENTRY_LIST_COLUMNS + " FROM entries ORDER BY title", null);
+    }
+
+    /**
+     * Get entries by category with pagination (OFFSET/LIMIT)
+     */
+    public android.database.Cursor getEntriesByCategoryPaged(String category, int offset, int limit) {
+        if (database == null || !database.isOpen()) {
+            return null;
+        }
+        StringBuilder where = new StringBuilder();
+        java.util.List<String> argList = new java.util.ArrayList<>();
+        buildCategoryWhereClause(category, where, argList);
+        StringBuilder sql = new StringBuilder();
+        sql.append("SELECT ").append(ENTRY_LIST_COLUMNS).append(" FROM entries");
+        if (where.length() > 0) {
+            sql.append(" WHERE ").append(where);
+        }
+        sql.append(" ORDER BY title LIMIT ").append(limit).append(" OFFSET ").append(offset);
+        String[] args = argList.isEmpty() ? null : argList.toArray(new String[0]);
+        return database.rawQuery(sql.toString(), args);
+    }
+
+    /**
+     * Get count of entries in a category
+     */
+    public int getCountByCategory(String category) {
+        if (database == null || !database.isOpen()) {
+            return 0;
+        }
+        StringBuilder where = new StringBuilder();
+        java.util.List<String> argList = new java.util.ArrayList<>();
+        buildCategoryWhereClause(category, where, argList);
+        StringBuilder sql = new StringBuilder();
+        sql.append("SELECT COUNT(*) FROM entries");
+        if (where.length() > 0) {
+            sql.append(" WHERE ").append(where);
+        }
+        String[] args = argList.isEmpty() ? null : argList.toArray(new String[0]);
+        android.database.Cursor c = database.rawQuery(sql.toString(), args);
+        try {
+            if (c != null && c.moveToFirst()) {
+                return c.getInt(0);
+            }
+        } finally {
+            if (c != null) c.close();
+        }
+        return 0;
+    }
+
+    /**
+     * Build a normalized WHERE clause for category filtering that also checks sub_category
+     * to better match various database schemas.
+     */
+    private void buildCategoryWhereClause(String category, StringBuilder where, java.util.List<String> args) {
+        String lower = category == null ? "" : category.toLowerCase();
+        if (lower.equals("movies") || lower.equals("movie") || lower.equals("films") || lower.equals("film")) {
+            where.append("(LOWER(main_category) IN ('movie','movies','film','films') OR LOWER(sub_category) IN ('movie','movies','film','films'))");
+        } else if (lower.equals("tv shows") || lower.equals("tv") || lower.equals("series") || lower.equals("tv series")) {
+            where.append("(LOWER(main_category) IN ('tv shows','tv','series','tv series') OR LOWER(sub_category) IN ('tv shows','tv','series','tv series'))");
+        } else if (lower.equals("live") || lower.equals("live tv") || lower.equals("iptv") || lower.equals("tv live")) {
+            where.append("(LOWER(main_category) LIKE 'live%' OR LOWER(main_category) LIKE '%live tv%' OR LOWER(sub_category) LIKE 'live%')");
+        } else if (lower.isEmpty()) {
+            // No filter
+        } else {
+            where.append("(LOWER(main_category) = ? OR LOWER(sub_category) = ?)");
+            args.add(lower);
+            args.add(lower);
+        }
     }
     
     /**

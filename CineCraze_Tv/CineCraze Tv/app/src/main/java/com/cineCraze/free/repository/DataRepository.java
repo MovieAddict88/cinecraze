@@ -307,7 +307,7 @@ public class DataRepository {
             }
             
             int offset = page * pageSize;
-            android.database.Cursor cursor = playlistManager.getRecentEntries(offset + pageSize);
+            android.database.Cursor cursor = playlistManager.getEntriesByCategoryPaged("", offset, pageSize);
             if (cursor == null) {
                 callback.onError("Failed to load paginated data");
                 return;
@@ -347,7 +347,8 @@ public class DataRepository {
                 return;
             }
             
-            android.database.Cursor cursor = playlistManager.getEntriesByCategory(category);
+            int offset = page * pageSize;
+            android.database.Cursor cursor = playlistManager.getEntriesByCategoryPaged(category, offset, pageSize);
             if (cursor == null) {
                 callback.onError("Failed to load category data");
                 return;
@@ -387,6 +388,7 @@ public class DataRepository {
                 return;
             }
             
+            // Search then paginate client-side for simplicity
             android.database.Cursor cursor = playlistManager.searchEntries(searchQuery);
             if (cursor == null) {
                 callback.onError("Failed to search data");
