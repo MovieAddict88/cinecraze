@@ -1,0 +1,136 @@
+<?xml version="1.0" encoding="utf-8"?>
+<LinearLayout xmlns:android="http://schemas.android.com/apk/res/android"
+    android:layout_width="match_parent"
+    android:layout_height="match_parent"
+    android:orientation="vertical"
+    android:gravity="center"
+    android:padding="32dp"
+    android:background="@drawable/gradient_overlay">
+
+    <!-- App Logo/Icon -->
+    <ImageView
+        android:layout_width="120dp"
+        android:layout_height="120dp"
+        android:src="@drawable/ic_launcher"
+        android:layout_marginBottom="32dp"
+        android:contentDescription="CineCraze Logo" />
+
+    <!-- Title -->
+    <TextView
+        android:layout_width="wrap_content"
+        android:layout_height="wrap_content"
+        android:text="CineCraze"
+        android:textSize="28sp"
+        android:textStyle="bold"
+        android:textColor="@android:color/white"
+        android:layout_marginBottom="8dp" />
+
+    <TextView
+        android:layout_width="wrap_content"
+        android:layout_height="wrap_content"
+        android:text="Movie &amp; TV Streaming"
+        android:textSize="16sp"
+        android:textColor="@android:color/white"
+        android:alpha="0.8"
+        android:layout_marginBottom="48dp" />
+
+    <!-- Download Status -->
+    <TextView
+        android:id="@+id/status_text"
+        android:layout_width="wrap_content"
+        android:layout_height="wrap_content"
+        android:text="Preparing to download..."
+        android:textSize="18sp"
+        android:textColor="@android:color/white"
+        android:gravity="center"
+        android:layout_marginBottom="24dp" />
+
+    <!-- Progress Bar -->
+    <ProgressBar
+        android:id="@+id/progress_bar"
+        style="?android:attr/progressBarStyleHorizontal"
+        android:layout_width="match_parent"
+        android:layout_height="8dp"
+        android:progressTint="@android:color/white"
+        android:progressBackgroundTint="@android:color/white"
+        android:progressBackgroundTintMode="multiply"
+        android:alpha="0.3"
+        android:layout_marginBottom="16dp" />
+
+    <!-- Progress Text -->
+    <TextView
+        android:id="@+id/progress_text"
+        android:layout_width="wrap_content"
+        android:layout_height="wrap_content"
+        android:text="0%"
+        android:textSize="16sp"
+        android:textColor="@android:color/white"
+        android:layout_marginBottom="32dp" />
+
+    <!-- Info Text -->
+    <TextView
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:text="Downloading the latest movie and TV show database to provide you with the best streaming experience."
+        android:textSize="14sp"
+        android:textColor="@android:color/white"
+        android:alpha="0.7"
+        android:gravity="center"
+        android:layout_marginBottom="32dp" />
+
+    <!-- Buttons Container -->
+    <LinearLayout
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:orientation="vertical"
+        android:gravity="center">
+
+        <!-- Continue Button -->
+        <Button
+            android:id="@+id/continue_button"
+            android:layout_width="match_parent"
+            android:layout_height="48dp"
+            android:text="Continue to App"
+            android:textSize="16sp"
+            android:textColor="@android:color/white"
+            android:background="@drawable/bg_background_green"
+            android:layout_marginBottom="16dp"
+            android:visibility="gone" />
+
+        <!-- Retry Button -->
+        <Button
+            android:id="@+id/retry_button"
+            android:layout_width="match_parent"
+            android:layout_height="48dp"
+            android:text="Retry Download"
+            android:textSize="16sp"
+            android:textColor="@android:color/white"
+            android:background="@drawable/bg_background_blue"
+            android:layout_marginBottom="16dp"
+            android:visibility="gone" />
+
+        <!-- Skip Button -->
+        <Button
+            android:id="@+id/skip_button"
+            android:layout_width="match_parent"
+            android:layout_height="48dp"
+            android:text="Skip for Now"
+            android:textSize="16sp"
+            android:textColor="@android:color/white"
+            android:background="@drawable/bg_background_yellow"
+            android:visibility="gone" />
+
+    </LinearLayout>
+
+    <!-- Footer Info -->
+    <TextView
+        android:layout_width="wrap_content"
+        android:layout_height="wrap_content"
+        android:text="Database will be downloaded to your device for offline access"
+        android:textSize="12sp"
+        android:textColor="@android:color/white"
+        android:alpha="0.5"
+        android:gravity="center"
+        android:layout_marginTop="32dp" />
+
+</LinearLayout>

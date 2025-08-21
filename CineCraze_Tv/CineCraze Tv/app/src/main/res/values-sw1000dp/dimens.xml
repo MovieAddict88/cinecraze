@@ -1,0 +1,16 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <dimen name="carousel_height">320dp</dimen>
+    <dimen name="carousel_bottom_margin">16dp</dimen>
+    <dimen name="carousel_offset_top">336dp</dimen>
+
+    <dimen name="grid_item_min_width">240dp</dimen>
+    <dimen name="grid_poster_height">360dp</dimen>
+
+    <dimen name="recycler_bottom_padding">140dp</dimen>
+    <dimen name="bottom_nav_height">72dp</dimen>
+
+    <!-- Larger TV card sizes for big screens -->
+    <dimen name="tv_card_width">420dp</dimen>
+    <dimen name="tv_card_height">236dp</dimen>
+</resources>
