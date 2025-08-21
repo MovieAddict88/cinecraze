@@ -150,9 +150,8 @@ public class DataRepository {
             Log.d(TAG, "Playlist database is available and valid");
             callback.onSuccess(new ArrayList<>()); // Return empty list to indicate success
         } else {
-            Log.d(TAG, "No valid playlist database - starting download");
-            // Automatically start download
-            triggerDownload(callback);
+            Log.d(TAG, "No valid playlist database available");
+            callback.onError("No playlist database available");
         }
     }
 
