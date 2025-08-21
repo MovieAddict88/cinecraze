@@ -1,0 +1,50 @@
+{
+  "allFiles": [
+    {
+      "file": "/storage/emulated/0/AndroidIDEProjects/CineCraze Tv/app/src/main/java/com/cineCraze/free/repository/DataRepository.java",
+      "selection": {
+        "end": {
+          "column": 0,
+          "index": 481,
+          "line": 12
+        },
+        "start": {
+          "column": 0,
+          "index": 481,
+          "line": 12
+        }
+      }
+    },
+    {
+      "file": "/storage/emulated/0/AndroidIDEProjects/CineCraze Tv/app/src/main/java/com/cineCraze/free/database/PlaylistDatabaseManager.java",
+      "selection": {
+        "end": {
+          "column": 1,
+          "index": 15359,
+          "line": 410
+        },
+        "start": {
+          "column": 0,
+          "index": 0,
+          "line": 0
+        }
+      }
+    },
+    {
+      "file": "/storage/emulated/0/AndroidIDEProjects/CineCraze Tv/app/src/main/java/com/cineCraze/free/utils/PlaylistDownloadManager.java",
+      "selection": {
+        "end": {
+          "column": 1,
+          "index": 5679,
+          "line": 178
+        },
+        "start": {
+          "column": 0,
+          "index": 0,
+          "line": 0
+        }
+      }
+    }
+  ],
+  "selectedFile": "/storage/emulated/0/AndroidIDEProjects/CineCraze Tv/app/src/main/java/com/cineCraze/free/utils/PlaylistDownloadManager.java"
+}

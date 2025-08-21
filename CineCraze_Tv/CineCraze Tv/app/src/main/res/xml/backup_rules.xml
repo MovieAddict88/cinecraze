@@ -1,0 +1,16 @@
+<?xml version="1.0" encoding="utf-8"?>
+<full-backup-content>
+	<include domain="sharedpref" path="."/>
+	<include domain="database" path="."/>
+	<include domain="file" path="."/>
+
+	<!-- Exclude update-related SharedPreferences to avoid restoring stale versions -->
+	<exclude domain="sharedpref" path="device.xml"/>
+	<exclude domain="sharedpref" path="playlist_update_prefs.xml"/>
+	<exclude domain="sharedpref" path="enhanced_update_prefs.xml"/>
+	<exclude domain="sharedpref" path="app_open_update_prefs.xml"/>
+
+	<!-- Exclude downloaded DB files from backup/restore -->
+	<exclude domain="file" path="playlist.db"/>
+	<exclude domain="file" path="playlist_temp.db"/>
+</full-backup-content>

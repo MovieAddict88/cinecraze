@@ -1,0 +1,11 @@
+{
+  "version": "20250816_143022",
+  "description": "One time donwlald as of now",
+  "database": {
+    "filename": "playlist.db",
+    "url": "https://github.com/MovieAddict88/Movie-Source/raw/main/playlist.db",
+    "size_bytes": 2531328,
+    "size_mb": 2.41,
+    "hash": "abc123def456..."
+  }
+}
